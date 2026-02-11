@@ -20,21 +20,55 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      - name: Debug - Check token exists
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set! Go to repo Settings > Secrets > Actions and add it."
+            exit 1
+          fi
+          echo "VERCEL_TOKEN is set (length: ${#TOKEN})"
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
       - name: Deploy to Vercel Production
         id: deploy
         run: |
-          URL=$(vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee /dev/stderr | grep -oP 'https://[^\s]+\.vercel\.app[^\s]*' | tail -1)
+          set -e
+          echo "=== Starting Vercel deployment ==="
+          echo "=== Running: vercel --prod --yes ==="
+
+          # Single command that handles project creation + build + deploy
+          OUTPUT=$(vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}" 2>&1) || {
+            echo "::error::Vercel deploy failed!"
+            echo "$OUTPUT"
+            exit 1
+          }
+
+          echo "=== Full vercel output ==="
+          echo "$OUTPUT"
+          echo "=== End output ==="
+
+          # Extract the deployment URL
+          URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+\.vercel\.app[^\s]*' | tail -1)
+
           if [ -z "$URL" ]; then
-            echo "ERROR: No deployment URL captured. Trying alternative..."
-            URL=$(vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee /dev/stderr | grep -oP 'https://[^\s]+' | tail -1)
+            # Try broader URL matching
+            URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+' | tail -1)
           fi
+
+          if [ -z "$URL" ]; then
+            echo "::error::Could not find deployment URL in output"
+            exit 1
+          fi
+
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** $URL" >> $GITHUB_STEP_SUMMARY
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          echo "**Production URL:** $URL" >> $GITHUB_STEP_SUMMARY
 
-      - name: Output Deployment URL
-        run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
+      - name: Print Deployment URL
+        if: always()
+        run: |
+          echo "============================================"
+          echo "  DEPLOYMENT URL: ${{ steps.deploy.outputs.url }}"
+          echo "============================================"
