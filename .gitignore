@@ -5,6 +5,10 @@
 # Dependencies
 node_modules/
 
+# Database
+*.db
+*.sqlite
+
 # Logs
 *.log
 npm-debug.log*
@@ -16,3 +20,15 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Build output
+portal/dist/
+
+# Sensitive data — NEVER commit
+credentials.json
+token.json
+*.pem
+*.key
+
+# Google OAuth tokens
+google-tokens.json
