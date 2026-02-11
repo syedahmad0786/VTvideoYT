@@ -29,15 +29,18 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          # Disable telemetry to reduce noise
+          # Disable telemetry
           vercel telemetry disable --token="$VERCEL_TOKEN" 2>/dev/null || true
 
-          echo "=== Starting Vercel deployment ==="
-          echo "=== Token length: ${#VERCEL_TOKEN} ==="
+          echo "=== Verifying token ==="
+          vercel whoami --token="$VERCEL_TOKEN" 2>&1 || echo "WARNING: whoami failed"
 
-          # Capture exit code separately
+          echo "=== Linking project ==="
+          vercel link --yes --token="$VERCEL_TOKEN" 2>&1 || echo "WARNING: link failed"
+
+          echo "=== Deploying to production ==="
           EXIT_CODE=0
-          vercel --prod --yes --token="$VERCEL_TOKEN" > /tmp/vercel_output.txt 2>&1 || EXIT_CODE=$?
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" > /tmp/vercel_output.txt 2>&1 || EXIT_CODE=$?
 
           echo "=== Vercel exit code: $EXIT_CODE ==="
           echo "=== Full output ==="
@@ -47,11 +50,11 @@ jobs:
 
           cp /tmp/vercel_output.txt ${{ github.workspace }}/vercel_output.txt
 
-          # Extract ONLY .vercel.app URLs (not docs URLs)
+          # Extract ONLY .vercel.app URLs
           URL=$(grep -oP 'https://[a-zA-Z0-9_-]+\.vercel\.app' /tmp/vercel_output.txt | tail -1 || true)
 
-          # Full output for commit status (filter out telemetry lines)
-          ERROR_MSG=$(grep -v 'telemetry' /tmp/vercel_output.txt | grep -v 'vercel.com/docs' | tr '\n' ' ' | head -c 130 || true)
+          # Save error for commit status (sanitize for JSON safety)
+          ERROR_MSG=$(grep -v 'telemetry' /tmp/vercel_output.txt | grep -v 'vercel.com/docs' | tr '\n' ' ' | tr '"' "'" | tr '`' "'" | head -c 130 || true)
 
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
@@ -70,30 +73,34 @@ jobs:
       - name: Post result as commit status
         if: always()
         uses: actions/github-script@v7
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          DEPLOY_ERROR: ${{ steps.deploy.outputs.error }}
+          DEPLOY_EXIT: ${{ steps.deploy.outputs.exit_code }}
         with:
           script: |
-            const url = '${{ steps.deploy.outputs.url }}';
-            const error = `${{ steps.deploy.outputs.error }}`;
-            const exitCode = '${{ steps.deploy.outputs.exit_code }}';
+            const url = process.env.DEPLOY_URL || '';
+            const error = process.env.DEPLOY_ERROR || '';
+            const exitCode = process.env.DEPLOY_EXIT || 'unknown';
             const sha = context.sha;
 
             if (url && url.includes('.vercel.app')) {
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                sha: sha,
+                sha,
                 state: 'success',
                 target_url: url,
-                description: `Deployed to ${url}`,
+                description: `Deployed to ${url}`.substring(0, 140),
                 context: 'vercel-deploy'
               });
             } else {
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                sha: sha,
+                sha,
                 state: 'failure',
-                description: (error || `Deploy failed with exit code ${exitCode}`).substring(0, 140),
+                description: (error || `Deploy failed (exit ${exitCode})`).substring(0, 140),
                 context: 'vercel-deploy'
               });
             }
@@ -106,13 +113,12 @@ jobs:
           path: vercel_output.txt
           retention-days: 3
 
-      - name: Fail if deploy failed
-        if: always()
+      - name: Check result
         run: |
           URL="${{ steps.deploy.outputs.url }}"
-          if [ -z "$URL" ] || ! echo "$URL" | grep -q '.vercel.app'; then
-            echo "Deploy failed! Full output:"
-            cat vercel_output.txt 2>/dev/null || true
+          if echo "$URL" | grep -q '.vercel.app'; then
+            echo "SUCCESS: $URL"
+          else
+            echo "DEPLOY FAILED"
             exit 1
           fi
-          echo "SUCCESS: $URL"
