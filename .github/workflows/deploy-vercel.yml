@@ -7,6 +7,10 @@ on:
       - claude/malik-zaid-agent-kRtlE
   workflow_dispatch:
 
+permissions:
+  statuses: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,34 +29,68 @@ jobs:
         run: |
           echo "=== Starting Vercel deployment ==="
 
-          # Run vercel and capture all output to a file for debugging
+          # Run vercel and capture all output
           vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}" > /tmp/vercel_output.txt 2>&1 || true
 
           echo "=== Full vercel output ==="
           cat /tmp/vercel_output.txt
           echo "=== End output ==="
 
-          # Save output for artifact upload
           cp /tmp/vercel_output.txt ${{ github.workspace }}/vercel_output.txt
 
           # Extract URL
           URL=$(grep -oP 'https://[^\s]+\.vercel\.app[^\s]*' /tmp/vercel_output.txt | tail -1 || true)
-
           if [ -z "$URL" ]; then
             URL=$(grep -oP 'https://[^\s]+' /tmp/vercel_output.txt | tail -1 || true)
           fi
 
+          # Also save the full output as a single-line for the commit status
+          ERROR_MSG=$(cat /tmp/vercel_output.txt | tr '\n' ' ' | head -c 130 || true)
+
           echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "error=$ERROR_MSG" >> $GITHUB_OUTPUT
 
           if [ -n "$URL" ]; then
             echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
             echo "**Production URL:** $URL" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### Deployment failed :x:" >> $GITHUB_STEP_SUMMARY
+            echo "### Deployment output :x:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat /tmp/vercel_output.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Post deployment URL as commit status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            const error = `${{ steps.deploy.outputs.error }}`;
+            const sha = context.sha;
+
+            if (url) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: sha,
+                state: 'success',
+                target_url: url,
+                description: `Deployed to ${url}`,
+                context: 'vercel-deploy'
+              });
+              core.info(`Posted commit status with URL: ${url}`);
+            } else {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: sha,
+                state: 'failure',
+                description: error.substring(0, 140) || 'Deploy failed - check logs',
+                context: 'vercel-deploy'
+              });
+              core.info(`Posted failure commit status: ${error}`);
+            }
 
       - name: Upload debug logs
         if: always()
@@ -71,7 +109,7 @@ jobs:
             echo "============================================"
           else
             echo "============================================"
-            echo "  DEPLOYMENT FAILED - check artifact logs"
+            echo "  DEPLOYMENT FAILED"
             echo "============================================"
             cat vercel_output.txt 2>/dev/null || true
             exit 1
