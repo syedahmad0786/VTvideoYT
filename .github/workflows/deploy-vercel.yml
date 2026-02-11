@@ -108,6 +108,62 @@ jobs:
               }
             }
 
+      - name: Check Vercel integration deployment
+        if: always()
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "=== Waiting for Vercel integration deploy to finish ==="
+          sleep 30
+
+          echo "=== Recent Vercel deployments ==="
+          vercel ls --token="$VERCEL_TOKEN" 2>&1 | head -20 || true
+
+          echo ""
+          echo "=== Checking for failed deployments ==="
+          # Use Vercel API to get recent deployments with errors
+          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?limit=5&state=ERROR" \
+            -o /tmp/vercel_deploys.json 2>&1
+
+          python3 -c "
+          import json
+          try:
+            with open('/tmp/vercel_deploys.json') as f:
+              data = json.load(f)
+            for d in data.get('deployments', []):
+              print(f'Deploy: {d.get(\"url\",\"?\")} | State: {d.get(\"state\",\"?\")} | Created: {d.get(\"created\",\"?\")}')
+              if d.get('errorMessage'):
+                print(f'  ERROR: {d[\"errorMessage\"]}')
+              if d.get('errorCode'):
+                print(f'  CODE: {d[\"errorCode\"]}')
+              uid = d.get('uid', '')
+              if uid:
+                print(f'  UID: {uid}')
+          except Exception as e:
+            print(f'Parse error: {e}')
+          " || true
+
+          echo ""
+          echo "=== Vercel project settings ==="
+          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/vtvideoyt" 2>&1 | python3 -c "
+          import json, sys
+          try:
+            data = json.load(sys.stdin)
+            print(f'Framework: {data.get(\"framework\", \"none\")}')
+            print(f'Root Dir: {data.get(\"rootDirectory\", \"/\")}')
+            print(f'Node Version: {data.get(\"nodeVersion\", \"default\")}')
+            bc = data.get('buildCommand')
+            ic = data.get('installCommand')
+            od = data.get('outputDirectory')
+            print(f'Build Command (dashboard): {bc}')
+            print(f'Install Command (dashboard): {ic}')
+            print(f'Output Directory (dashboard): {od}')
+          except Exception as e:
+            print(f'Error: {e}')
+          " || true
+
       - name: Upload debug logs
         if: always()
         uses: actions/upload-artifact@v4

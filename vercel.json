@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "framework": null,
   "installCommand": "npm install && cd portal && npm install",
   "buildCommand": "cd portal && npm run build",
   "outputDirectory": "portal/dist",
@@ -9,7 +10,8 @@
   "functions": {
     "api/index.js": {
       "memory": 1024,
-      "maxDuration": 60
+      "maxDuration": 60,
+      "runtime": "nodejs20.x"
     }
   }
 }
