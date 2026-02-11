@@ -24,7 +24,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Set Vercel environment variables
+      - name: Configure Vercel project
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -36,39 +36,52 @@ jobs:
           vercel telemetry disable --token="$VERCEL_TOKEN" 2>/dev/null || true
           vercel link --yes --token="$VERCEL_TOKEN" 2>&1 || true
 
-          # Set required env vars on the Vercel project
+          # Get project ID
+          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/vtvideoyt" -o /tmp/vp.json
+          PROJECT_ID=$(python3 -c "import json; print(json.load(open('/tmp/vp.json')).get('id',''))")
+          echo "Project ID: $PROJECT_ID"
+
+          # Disable SSO protection and set framework to null BEFORE deploy
+          echo "=== Disabling SSO protection and setting framework ==="
+          curl -s -X PATCH -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "ssoProtection": null,
+              "passwordProtection": null,
+              "framework": null
+            }' \
+            "https://api.vercel.com/v9/projects/$PROJECT_ID" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'SSO: {d.get(\"ssoProtection\")}')
+          print(f'Framework: {d.get(\"framework\")}')
+          " || echo "Protection update may require admin access"
+
+          # Set environment variables
           set_env() {
             local key="$1" val="$2"
-            # Remove first to allow update, then add
             vercel env rm "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || true
             echo "$val" | vercel env add "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "$key skipped"
           }
 
-          # Core
           set_env "ANTHROPIC_API_KEY" "$ANTHROPIC_API_KEY"
           set_env "AI_MODEL" "claude-sonnet-4-20250514"
           set_env "NODE_ENV" "production"
           set_env "BASE_URL" "https://vtvideoyt.vercel.app"
           set_env "PORTAL_URL" "https://vtvideoyt.vercel.app"
-
-          # Owner identity (for agent context)
           set_env "OWNER_NAME" "Ayham"
           set_env "OWNER_ALIAS" "A'Y"
           set_env "OWNER_ROLE" "Managing Partner, Co-Founder"
           set_env "OWNER_ORG" "HRMNY"
-
-          # Google OAuth redirect URI (production)
           set_env "GOOGLE_REDIRECT_URI" "https://vtvideoyt.vercel.app/api/auth/google/callback"
 
-          # Turso, Google OAuth creds, and platform secrets are set via GitHub secrets
-          # TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
           for secret_key in TURSO_DATABASE_URL TURSO_AUTH_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
-            val_ref="${secret_key}"
-            val="${!val_ref}"
+            val="${!secret_key}"
             if [ -n "$val" ]; then
               set_env "$secret_key" "$val"
             else
-              echo "$secret_key not in GitHub secrets, skipping"
+              echo "$secret_key not in secrets, skipping"
             fi
           done
 
@@ -77,178 +90,111 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          echo "=== Deploying to production ==="
           EXIT_CODE=0
           vercel deploy --prod --yes --name=vtvideoyt --token="$VERCEL_TOKEN" > /tmp/vercel_output.txt 2>&1 || EXIT_CODE=$?
-
-          echo "=== Vercel exit code: $EXIT_CODE ==="
           cat /tmp/vercel_output.txt
           cp /tmp/vercel_output.txt ${{ github.workspace }}/vercel_output.txt
 
-          # Extract ONLY .vercel.app URLs
           URL=$(grep -oP 'https://[a-zA-Z0-9_-]+\.vercel\.app' /tmp/vercel_output.txt | tail -1 || true)
-
-          # Error chunks for commit status
           FULL_OUTPUT=$(grep -v 'telemetry' /tmp/vercel_output.txt | grep -v 'vercel.com/docs' | tr '\n' '|' | tr '"' "'" | tr '`' "'" || true)
-          CHUNK1=$(echo "$FULL_OUTPUT" | head -c 140)
-          CHUNK2=$(echo "$FULL_OUTPUT" | cut -c 141-280)
 
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "chunk1=$CHUNK1" >> $GITHUB_OUTPUT
-          echo "chunk2=$CHUNK2" >> $GITHUB_OUTPUT
+          echo "chunk1=$(echo "$FULL_OUTPUT" | head -c 140)" >> $GITHUB_OUTPUT
 
           if [ -n "$URL" ]; then
             echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
-            echo "**Production URL:** $URL" >> $GITHUB_STEP_SUMMARY
+            echo "**URL:** $URL" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### Deployment failed (exit code: $EXIT_CODE) :x:" >> $GITHUB_STEP_SUMMARY
+            echo "### Deploy failed (exit $EXIT_CODE) :x:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat /tmp/vercel_output.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Post result as commit status
+      - name: Test deployment
+        if: always()
+        id: test
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          URL="${DEPLOY_URL:-https://vtvideoyt.vercel.app}"
+          echo "Testing: $URL"
+
+          # Wait for deployment to propagate
+          sleep 10
+
+          # Test health endpoint
+          echo "=== Health check ==="
+          HEALTH=$(curl -s -w "\nHTTP:%{http_code}" "$URL/api/health" 2>&1)
+          echo "$HEALTH"
+          HEALTH_CODE=$(echo "$HEALTH" | grep "HTTP:" | cut -d: -f2)
+          echo "health_code=$HEALTH_CODE" >> $GITHUB_OUTPUT
+          echo "health_body=$(echo "$HEALTH" | head -1 | head -c 140)" >> $GITHUB_OUTPUT
+
+          # Test portal
+          echo "=== Portal check ==="
+          PORTAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/" 2>&1)
+          echo "Portal: HTTP $PORTAL_CODE"
+          echo "portal_code=$PORTAL_CODE" >> $GITHUB_OUTPUT
+
+      - name: Post results as commit statuses
         if: always()
         uses: actions/github-script@v7
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
           DEPLOY_EXIT: ${{ steps.deploy.outputs.exit_code }}
-          CHUNK1: ${{ steps.deploy.outputs.chunk1 }}
-          CHUNK2: ${{ steps.deploy.outputs.chunk2 }}
+          HEALTH_CODE: ${{ steps.test.outputs.health_code }}
+          HEALTH_BODY: ${{ steps.test.outputs.health_body }}
+          PORTAL_CODE: ${{ steps.test.outputs.portal_code }}
         with:
           script: |
-            const url = process.env.DEPLOY_URL || '';
-            const exitCode = process.env.DEPLOY_EXIT || 'unknown';
             const sha = context.sha;
             const {owner, repo} = context.repo;
+            const url = process.env.DEPLOY_URL || '';
 
+            // Deploy status
             if (url && url.includes('.vercel.app')) {
               await github.rest.repos.createCommitStatus({
-                owner, repo, sha,
-                state: 'success',
+                owner, repo, sha, state: 'success',
                 target_url: url,
                 description: `Deployed to ${url}`.substring(0, 140),
                 context: 'vercel-deploy'
               });
             } else {
-              const chunks = [process.env.CHUNK1, process.env.CHUNK2].filter(c => c && c.trim());
-              for (let i = 0; i < chunks.length; i++) {
-                await github.rest.repos.createCommitStatus({
-                  owner, repo, sha,
-                  state: 'failure',
-                  description: chunks[i].substring(0, 140),
-                  context: `vercel-deploy-log-${i + 1}`
-                });
-              }
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha, state: 'failure',
+                description: (process.env.DEPLOY_EXIT || 'failed').substring(0, 140),
+                context: 'vercel-deploy'
+              });
             }
 
-      - name: Disable deployment protection and test
-        if: always()
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: |
-          DIAG="${{ github.workspace }}/vercel_diagnostics.txt"
+            // Health test status
+            const hc = process.env.HEALTH_CODE || '?';
+            const hb = process.env.HEALTH_BODY || '';
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha,
+              state: hc === '200' ? 'success' : 'failure',
+              description: `Health: HTTP ${hc} | ${hb}`.substring(0, 140),
+              context: 'vercel-health'
+            });
 
-          # Get project info and check protection settings
-          echo "=== Checking project settings ===" | tee "$DIAG"
-          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/vtvideoyt" -o /tmp/vercel_project.json
+            // Portal test status
+            const pc = process.env.PORTAL_CODE || '?';
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha,
+              state: ['200','304'].includes(pc) ? 'success' : 'failure',
+              description: `Portal: HTTP ${pc}`,
+              context: 'vercel-portal'
+            });
 
-          python3 -c "
-          import json
-          with open('/tmp/vercel_project.json') as f:
-            d = json.load(f)
-          print(f'Project ID: {d.get(\"id\",\"?\")}')
-          print(f'Framework: {d.get(\"framework\",\"none\")}')
-          print(f'Node: {d.get(\"nodeVersion\",\"default\")}')
-          print(f'Protection bypass: {d.get(\"protectionBypass\",\"none\")}')
-          print(f'SSO protection: {d.get(\"ssoProtection\",\"none\")}')
-          print(f'Password protection: {d.get(\"passwordProtection\",\"none\")}')
-          print(f'Trusted Ips: {d.get(\"trustedIps\",\"none\")}')
-          print(f'Options allowlist: {d.get(\"optionsAllowlist\",\"none\")}')
-          " 2>&1 | tee -a "$DIAG"
-
-          # Get project ID
-          PROJECT_ID=$(python3 -c "import json; d=json.load(open('/tmp/vercel_project.json')); print(d.get('id',''))")
-
-          # Disable deployment protection via API
-          echo "" | tee -a "$DIAG"
-          echo "=== Disabling deployment protection ===" | tee -a "$DIAG"
-          curl -s -X PATCH -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"ssoProtection":null,"passwordProtection":null,"trustedIps":null,"optionsAllowlist":null}' \
-            "https://api.vercel.com/v9/projects/$PROJECT_ID" 2>&1 | python3 -c "
-          import json, sys
-          try:
-            d = json.load(sys.stdin)
-            print(f'Updated: ssoProtection={d.get(\"ssoProtection\")}, passwordProtection={d.get(\"passwordProtection\")}')
-          except: print('Update response not JSON')
-          " | tee -a "$DIAG"
-
-          # Also set Vercel Authentication to disabled for production
-          echo "" | tee -a "$DIAG"
-          echo "=== Setting deployment protection to none ===" | tee -a "$DIAG"
-          curl -s -X PATCH -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"buildCommand":"cd portal && npm run build","outputDirectory":"portal/dist","framework":null}' \
-            "https://api.vercel.com/v9/projects/$PROJECT_ID" -o /dev/null
-
-          # Wait for deployment to be fully ready
-          echo "" | tee -a "$DIAG"
-          sleep 15
-
-          # Test the health endpoint
-          echo "=== Testing health endpoint ===" | tee -a "$DIAG"
-          URL="${DEPLOY_URL:-https://vtvideoyt.vercel.app}"
-          HEALTH_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$URL/api/health" 2>&1)
-          echo "$HEALTH_RESPONSE" | tee -a "$DIAG"
-
-          # Also test the root
-          echo "" | tee -a "$DIAG"
-          echo "=== Testing root ===" | tee -a "$DIAG"
-          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/" 2>&1)
-          echo "Root status: $ROOT_STATUS" | tee -a "$DIAG"
-
-      - name: Upload debug logs
+      - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: vercel-deploy-logs
-          path: |
-            vercel_output.txt
-            vercel_diagnostics.txt
+          path: vercel_output.txt
           retention-days: 3
-
-      - name: Post test results as commit status
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            try {
-              const diag = fs.readFileSync('vercel_diagnostics.txt', 'utf8');
-              const lines = diag.split('\n').filter(l => l.trim());
-              const important = lines.filter(l =>
-                l.includes('HTTP_STATUS') || l.includes('Project ID') ||
-                l.includes('Framework') || l.includes('protection') ||
-                l.includes('Root status') || l.includes('Protection') ||
-                l.includes('status') || l.includes('ERROR')
-              ).slice(0, 5);
-              for (let i = 0; i < important.length; i++) {
-                await github.rest.repos.createCommitStatus({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  sha: context.sha,
-                  state: 'success',
-                  description: important[i].substring(0, 140),
-                  context: `vercel-test-${i + 1}`
-                });
-              }
-            } catch (e) {
-              console.log('Error:', e.message);
-            }
 
       - name: Check result
         run: |
