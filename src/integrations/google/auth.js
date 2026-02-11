@@ -2,7 +2,7 @@
 // Handles OAuth flow for all Google APIs.
 // Stores tokens in DB (IntegrationTokens) for Vercel compatibility.
 
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import { IntegrationTokens } from '../../db/models.js';
 import { logger } from '../../utils/logger.js';
 
@@ -31,7 +31,7 @@ export function getAuthClient() {
     return null;
   }
 
-  oAuth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  oAuth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
 
   // Auto-refresh: save new tokens to DB
   oAuth2Client.on('tokens', async (newTokens) => {
@@ -99,11 +99,3 @@ export function isAuthenticated() {
   return client && client.credentials && !!client.credentials.access_token;
 }
 
-export function getService(serviceName, version) {
-  const auth = getAuthClient();
-  if (!auth || !isAuthenticated()) {
-    logger.warn('GOOGLE_AUTH', `Cannot create ${serviceName} service — not authenticated`);
-    return null;
-  }
-  return google[serviceName]({ version, auth });
-}

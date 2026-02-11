@@ -1,14 +1,14 @@
 // ─── Gmail Integration ──────────────────────────────────────
 // Inbox triage, draft creation, email sending (with approval gate).
 
-import { google } from 'googleapis';
+import { gmail as gmailApi } from '@googleapis/gmail';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getGmail() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.gmail({ version: 'v1', auth });
+  return gmailApi({ version: 'v1', auth });
 }
 
 /**

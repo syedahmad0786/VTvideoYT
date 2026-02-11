@@ -1,20 +1,21 @@
 // ─── Google Docs Integration ──────────────────────────────────
 // Create and manage documents.
 
-import { google } from 'googleapis';
+import { docs as docsApi } from '@googleapis/docs';
+import { drive as driveApi } from '@googleapis/drive';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getDocs() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.docs({ version: 'v1', auth });
+  return docsApi({ version: 'v1', auth });
 }
 
 function getDrive() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.drive({ version: 'v3', auth });
+  return driveApi({ version: 'v3', auth });
 }
 
 /**

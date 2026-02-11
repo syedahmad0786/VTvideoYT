@@ -1,14 +1,14 @@
 // ─── Google Chat Integration ──────────────────────────────────
 // Internal communication channel for Malik + A'Y.
 
-import { google } from 'googleapis';
+import { chat as chatApi } from '@googleapis/chat';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getChat() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.chat({ version: 'v1', auth });
+  return chatApi({ version: 'v1', auth });
 }
 
 /**

@@ -1,14 +1,14 @@
 // ─── Google Calendar Integration ──────────────────────────────
 // View A'Y calendar, create events as Malik, time-block optimization.
 
-import { google } from 'googleapis';
+import { calendar as calendarApi } from '@googleapis/calendar';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getCalendar() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.calendar({ version: 'v3', auth });
+  return calendarApi({ version: 'v3', auth });
 }
 
 /**

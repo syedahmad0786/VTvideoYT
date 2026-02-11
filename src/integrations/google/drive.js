@@ -1,14 +1,14 @@
 // ─── Google Drive Integration ──────────────────────────────────
 // File management with predictable folder structure.
 
-import { google } from 'googleapis';
+import { drive as driveApi } from '@googleapis/drive';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getDrive() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.drive({ version: 'v3', auth });
+  return driveApi({ version: 'v3', auth });
 }
 
 // Malik's folder structure

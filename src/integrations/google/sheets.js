@@ -1,20 +1,21 @@
 // ─── Google Sheets Integration ──────────────────────────────────
 // Create and manage spreadsheets (trackers, templates).
 
-import { google } from 'googleapis';
+import { sheets as sheetsApi } from '@googleapis/sheets';
+import { drive as driveApi } from '@googleapis/drive';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getSheets() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.sheets({ version: 'v4', auth });
+  return sheetsApi({ version: 'v4', auth });
 }
 
 function getDrive() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.drive({ version: 'v3', auth });
+  return driveApi({ version: 'v3', auth });
 }
 
 /**

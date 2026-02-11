@@ -1,13 +1,13 @@
 // ─── Google Tasks Integration ──────────────────────────────────
 
-import { google } from 'googleapis';
+import { tasks as tasksApi } from '@googleapis/tasks';
 import { getAuthClient, isAuthenticated } from './auth.js';
 import { logger } from '../../utils/logger.js';
 
 function getTasks() {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) return null;
-  return google.tasks({ version: 'v1', auth });
+  return tasksApi({ version: 'v1', auth });
 }
 
 /**
