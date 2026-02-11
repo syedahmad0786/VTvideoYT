@@ -13,7 +13,8 @@ export function getDb() {
         authToken: process.env.TURSO_AUTH_TOKEN,
       });
     } else {
-      db = createClient({ url: 'file:malik.db' });
+      const dbPath = process.env.VERCEL ? 'file:/tmp/malik.db' : 'file:malik.db';
+      db = createClient({ url: dbPath });
     }
   }
   return db;

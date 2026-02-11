@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd portal && npm install && npm run build",
+  "installCommand": "npm install && cd portal && npm install",
+  "buildCommand": "cd portal && npm run build",
   "outputDirectory": "portal/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" }
@@ -8,7 +9,7 @@
   "functions": {
     "api/index.js": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 60
     }
   }
 }
