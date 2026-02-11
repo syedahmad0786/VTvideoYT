@@ -58,11 +58,18 @@ jobs:
           print(f'Framework: {d.get(\"framework\")}')
           " || echo "Protection update may require admin access"
 
-          # Set environment variables
+          # Set environment variables (safe: skip empty, add-first approach)
           set_env() {
             local key="$1" val="$2"
-            vercel env rm "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || true
-            echo "$val" | vercel env add "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "$key skipped"
+            if [ -z "$val" ]; then
+              echo "SKIP $key (empty value)"
+              return
+            fi
+            # Try add first; if already exists, remove then re-add
+            if ! echo "$val" | vercel env add "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null; then
+              vercel env rm "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || true
+              echo "$val" | vercel env add "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "WARN: $key failed"
+            fi
           }
 
           set_env "ANTHROPIC_API_KEY" "$ANTHROPIC_API_KEY"

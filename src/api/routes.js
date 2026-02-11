@@ -47,7 +47,12 @@ router.post('/chat', async (req, res) => {
     const result = await malik.processMessage(message);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: error.message,
+      type: error.constructor?.name,
+      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+      model: process.env.AI_MODEL || 'default',
+    });
   }
 });
 
