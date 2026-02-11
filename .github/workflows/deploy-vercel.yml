@@ -28,14 +28,49 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           vercel telemetry disable --token="$VERCEL_TOKEN" 2>/dev/null || true
           vercel link --yes --token="$VERCEL_TOKEN" 2>&1 || true
 
           # Set required env vars on the Vercel project
-          echo "$ANTHROPIC_API_KEY" | vercel env add ANTHROPIC_API_KEY production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "ANTHROPIC_API_KEY already set or skipped"
-          echo "claude-sonnet-4-20250514" | vercel env add AI_MODEL production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "AI_MODEL already set or skipped"
-          echo "production" | vercel env add NODE_ENV production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "NODE_ENV already set or skipped"
+          set_env() {
+            local key="$1" val="$2"
+            # Remove first to allow update, then add
+            vercel env rm "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || true
+            echo "$val" | vercel env add "$key" production --token="$VERCEL_TOKEN" --yes 2>/dev/null || echo "$key skipped"
+          }
+
+          # Core
+          set_env "ANTHROPIC_API_KEY" "$ANTHROPIC_API_KEY"
+          set_env "AI_MODEL" "claude-sonnet-4-20250514"
+          set_env "NODE_ENV" "production"
+          set_env "BASE_URL" "https://vtvideoyt.vercel.app"
+          set_env "PORTAL_URL" "https://vtvideoyt.vercel.app"
+
+          # Owner identity (for agent context)
+          set_env "OWNER_NAME" "Ayham"
+          set_env "OWNER_ALIAS" "A'Y"
+          set_env "OWNER_ROLE" "Managing Partner, Co-Founder"
+          set_env "OWNER_ORG" "HRMNY"
+
+          # Google OAuth redirect URI (production)
+          set_env "GOOGLE_REDIRECT_URI" "https://vtvideoyt.vercel.app/api/auth/google/callback"
+
+          # Turso, Google OAuth creds, and platform secrets are set via GitHub secrets
+          # TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+          for secret_key in TURSO_DATABASE_URL TURSO_AUTH_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+            val_ref="${secret_key}"
+            val="${!val_ref}"
+            if [ -n "$val" ]; then
+              set_env "$secret_key" "$val"
+            else
+              echo "$secret_key not in GitHub secrets, skipping"
+            fi
+          done
 
       - name: Deploy to Vercel Production
         id: deploy

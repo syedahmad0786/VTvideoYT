@@ -13,8 +13,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
+
+const allowedOrigins = [
+  process.env.PORTAL_URL || 'http://localhost:5173',
+  process.env.BASE_URL,
+  /\.vercel\.app$/,
+];
+
 app.use(cors({
-  origin: process.env.PORTAL_URL || 'http://localhost:5173',
+  origin(origin, callback) {
+    // Allow same-origin (no origin header) and server-to-server
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(o =>
+      o instanceof RegExp ? o.test(origin) : o === origin
+    )) return callback(null, true);
+    callback(null, false);
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
