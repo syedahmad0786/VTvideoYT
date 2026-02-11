@@ -89,6 +89,25 @@ export const api = {
   getAuthUrl: () => request('/auth/google'),
   getAuthStatus: () => request('/auth/status'),
 
+  // Integrations
+  getIntegrations: () => request('/integrations'),
+  getAuthUrlFor: (platform) => request(`/auth/${platform}`),
+  disconnectPlatform: (platform) => request(`/auth/${platform}`, { method: 'DELETE' }),
+  connectTelegram: (botToken) => request('/auth/telegram', { method: 'POST', body: { botToken } }),
+  connectCanva: (apiKey) => request('/auth/canva', { method: 'POST', body: { apiKey } }),
+
+  // Integration Data
+  getSlackChannels: () => request('/integrations/slack/channels'),
+  getSlackMessages: (channel, limit = 20) => request(`/integrations/slack/messages/${channel}?limit=${limit}`),
+  getNotionPages: () => request('/integrations/notion/pages'),
+  getNotionDatabases: () => request('/integrations/notion/databases'),
+  getAsanaWorkspaces: () => request('/integrations/asana/workspaces'),
+  getAsanaTasks: (workspace) => request(`/integrations/asana/tasks?workspace=${workspace}`),
+  getTelegramUpdates: (limit = 20) => request(`/integrations/telegram/updates?limit=${limit}`),
+  getDiscordGuilds: () => request('/integrations/discord/guilds'),
+  getMetaPages: () => request('/integrations/meta/pages'),
+  getMetaInstagram: () => request('/integrations/meta/instagram'),
+
   // Setup
   setupDrive: () => request('/setup/drive', { method: 'POST' }),
 };

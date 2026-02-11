@@ -1,40 +1,36 @@
 {
   "name": "malik-zaid-agent",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Malik Zaid — Executive A-Player Agent for A'Y (HRMNY)",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "agent": "node src/agent/malik.js",
+    "setup": "node src/setup.js",
     "portal:dev": "cd portal && npm run dev",
     "portal:build": "cd portal && npm run build",
-    "setup": "node src/setup.js",
-    "n8n:start": "node src/index.js",
-    "n8n:webhook": "node src/call-webhook.js",
-    "n8n:list": "node src/list-workflows.js",
-    "n8n:execute": "node src/execute-workflow.js"
+    "vercel:dev": "vercel dev"
   },
   "keywords": [
     "ai-agent",
     "executive-assistant",
     "automation",
-    "n8n",
-    "malik-zaid"
+    "malik-zaid",
+    "turso",
+    "vercel"
   ],
   "author": "HRMNY",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "better-sqlite3": "^11.7.0",
+    "@libsql/client": "^0.14.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.3.1",
     "express": "^4.21.0",
     "googleapis": "^144.0.0",
     "helmet": "^8.0.0",
-    "node-cron": "^3.0.3",
     "uuid": "^11.0.0"
   },
   "devDependencies": {

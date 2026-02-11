@@ -1,120 +1,118 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// ─── Database Layer — Turso (cloud) / libSQL (local) ──────────
+// Async database layer for Vercel serverless + Turso cloud.
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '..', '..', 'malik.db');
+import { createClient } from '@libsql/client';
 
 let db;
 
 export function getDb() {
   if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    runMigrations(db);
+    if (process.env.TURSO_DATABASE_URL) {
+      db = createClient({
+        url: process.env.TURSO_DATABASE_URL,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+      });
+    } else {
+      db = createClient({ url: 'file:malik.db' });
+    }
   }
   return db;
 }
 
-function runMigrations(db) {
-  db.exec(`
-    -- Approval Queue: items waiting for A'Y sign-off
-    CREATE TABLE IF NOT EXISTS approval_queue (
+export async function initDb() {
+  const client = getDb();
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS approval_queue (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,           -- 'email_send', 'file_share', 'financial', 'process_change', 'hr_legal', 'other'
+      type TEXT NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
-      payload TEXT,                 -- JSON blob with action details
-      status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'approved', 'rejected'
-      priority TEXT DEFAULT 'normal',          -- 'low', 'normal', 'high', 'urgent'
+      payload TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      priority TEXT DEFAULT 'normal',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       resolved_at TEXT,
       resolved_by TEXT,
       resolution_note TEXT
-    );
-
-    -- Work Log: timeline of everything Malik did
-    CREATE TABLE IF NOT EXISTS work_log (
+    )`,
+    `CREATE TABLE IF NOT EXISTS work_log (
       id TEXT PRIMARY KEY,
-      action TEXT NOT NULL,         -- what was done
-      category TEXT NOT NULL,       -- 'draft', 'research', 'system', 'calendar', 'inbox', 'proposal', 'meeting_prep', 'talent', 'automation'
-      details TEXT,                 -- longer description
-      links TEXT,                   -- JSON array of related links
+      action TEXT NOT NULL,
+      category TEXT NOT NULL,
+      details TEXT,
+      links TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Deliverables: drafts ready for review
-    CREATE TABLE IF NOT EXISTS deliverables (
+    )`,
+    `CREATE TABLE IF NOT EXISTS deliverables (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
-      type TEXT NOT NULL,           -- 'doc', 'slide', 'sheet', 'canva', 'email_draft', 'proposal', 'research', 'other'
-      status TEXT NOT NULL DEFAULT 'draft',  -- 'draft', 'in_review', 'approved', 'published'
-      link TEXT,                    -- Google Drive / Canva link
+      type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      link TEXT,
       description TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Decisions Log: decisions, rationale, status
-    CREATE TABLE IF NOT EXISTS decisions_log (
+    )`,
+    `CREATE TABLE IF NOT EXISTS decisions_log (
       id TEXT PRIMARY KEY,
       decision TEXT NOT NULL,
       rationale TEXT NOT NULL,
-      options_considered TEXT,      -- JSON array
-      status TEXT NOT NULL DEFAULT 'proposed',  -- 'proposed', 'accepted', 'rejected', 'deferred'
+      options_considered TEXT,
+      status TEXT NOT NULL DEFAULT 'proposed',
       category TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       resolved_at TEXT
-    );
-
-    -- Task Register: what Malik has in flight
-    CREATE TABLE IF NOT EXISTS task_register (
+    )`,
+    `CREATE TABLE IF NOT EXISTS task_register (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
       category TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'backlog',  -- 'backlog', 'in_progress', 'blocked', 'done'
+      status TEXT NOT NULL DEFAULT 'backlog',
       priority TEXT DEFAULT 'normal',
       next_milestone TEXT,
       due_date TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       completed_at TEXT
-    );
-
-    -- Risk Flags: auto-escalation items
-    CREATE TABLE IF NOT EXISTS risk_flags (
+    )`,
+    `CREATE TABLE IF NOT EXISTS risk_flags (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,           -- 'legal', 'financial', 'hr', 'reputational', 'security'
+      type TEXT NOT NULL,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
-      severity TEXT NOT NULL DEFAULT 'medium',  -- 'low', 'medium', 'high', 'critical'
-      status TEXT NOT NULL DEFAULT 'open',      -- 'open', 'acknowledged', 'mitigated', 'closed'
-      source TEXT,                  -- where this was detected
+      severity TEXT NOT NULL DEFAULT 'medium',
+      status TEXT NOT NULL DEFAULT 'open',
+      source TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       resolved_at TEXT
-    );
-
-    -- Memory: controlled persistent context
-    CREATE TABLE IF NOT EXISTS memory (
+    )`,
+    `CREATE TABLE IF NOT EXISTS memory (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
-      category TEXT NOT NULL,       -- 'profile', 'preference', 'project', 'priority', 'rule'
+      category TEXT NOT NULL,
       sensitive INTEGER DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Conversation History: for agent context continuity
-    CREATE TABLE IF NOT EXISTS conversation_history (
+    )`,
+    `CREATE TABLE IF NOT EXISTS conversation_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      role TEXT NOT NULL,           -- 'user', 'assistant', 'system'
+      role TEXT NOT NULL,
       content TEXT NOT NULL,
-      metadata TEXT,                -- JSON for extra context
+      metadata TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
+    )`,
+    `CREATE TABLE IF NOT EXISTS integration_tokens (
+      platform TEXT PRIMARY KEY,
+      token_data TEXT NOT NULL,
+      scopes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+  ];
+  for (const sql of tables) {
+    await client.execute(sql);
+  }
 }
 
 export function closeDb() {

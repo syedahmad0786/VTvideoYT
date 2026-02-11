@@ -1,49 +1,30 @@
 // ─── Google OAuth 2.0 Authentication ──────────────────────────
 // Handles OAuth flow for all Google APIs.
+// Stores tokens in DB (IntegrationTokens) for Vercel compatibility.
 
 import { google } from 'googleapis';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { IntegrationTokens } from '../../db/models.js';
 import { logger } from '../../utils/logger.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TOKEN_PATH = path.join(__dirname, '..', '..', '..', 'google-tokens.json');
-
-// All scopes Malik needs
+// Read-only scopes for Phase 1
 const SCOPES = [
-  // Gmail
   'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.modify',
-  'https://www.googleapis.com/auth/gmail.labels',
-  // Calendar
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events',
-  // Drive
-  'https://www.googleapis.com/auth/drive',
-  // Docs
-  'https://www.googleapis.com/auth/documents',
-  // Sheets
-  'https://www.googleapis.com/auth/spreadsheets',
-  // Tasks
-  'https://www.googleapis.com/auth/tasks',
-  // Chat
-  'https://www.googleapis.com/auth/chat.messages',
-  'https://www.googleapis.com/auth/chat.spaces',
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/documents.readonly',
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/tasks.readonly',
 ];
 
 let oAuth2Client = null;
+let _authenticated = false;
 
-/**
- * Get or create OAuth2 client
- */
 export function getAuthClient() {
   if (oAuth2Client) return oAuth2Client;
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3100/auth/google/callback';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.BASE_URL || 'http://localhost:3100'}/api/auth/google/callback`;
 
   if (!clientId || !clientSecret) {
     logger.warn('GOOGLE_AUTH', 'Google OAuth credentials not configured');
@@ -52,31 +33,41 @@ export function getAuthClient() {
 
   oAuth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  // Load saved tokens if they exist
-  if (fs.existsSync(TOKEN_PATH)) {
+  // Auto-refresh: save new tokens to DB
+  oAuth2Client.on('tokens', async (newTokens) => {
     try {
-      const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-      oAuth2Client.setCredentials(tokens);
-      logger.info('GOOGLE_AUTH', 'Loaded saved tokens');
-
-      // Auto-refresh
-      oAuth2Client.on('tokens', (newTokens) => {
-        const existing = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-        const merged = { ...existing, ...newTokens };
-        fs.writeFileSync(TOKEN_PATH, JSON.stringify(merged, null, 2));
-        logger.info('GOOGLE_AUTH', 'Tokens refreshed and saved');
-      });
+      const existing = await IntegrationTokens.get('google');
+      const current = existing ? JSON.parse(existing.token_data) : {};
+      const merged = { ...current, ...newTokens };
+      await IntegrationTokens.set('google', { ...merged, scopes: SCOPES.join(',') });
+      logger.info('GOOGLE_AUTH', 'Tokens refreshed and saved to DB');
     } catch (err) {
-      logger.error('GOOGLE_AUTH', 'Failed to load tokens', { error: err.message });
+      logger.error('GOOGLE_AUTH', 'Failed to save refreshed tokens', { error: err.message });
     }
-  }
+  });
 
   return oAuth2Client;
 }
 
-/**
- * Generate the OAuth consent URL
- */
+export async function loadTokensFromDb() {
+  try {
+    const record = await IntegrationTokens.get('google');
+    if (record) {
+      const tokens = JSON.parse(record.token_data);
+      const client = getAuthClient();
+      if (client && tokens.access_token) {
+        client.setCredentials(tokens);
+        _authenticated = true;
+        logger.info('GOOGLE_AUTH', 'Loaded tokens from DB');
+        return true;
+      }
+    }
+  } catch (err) {
+    logger.error('GOOGLE_AUTH', 'Failed to load tokens from DB', { error: err.message });
+  }
+  return false;
+}
+
 export function getAuthUrl() {
   const client = getAuthClient();
   if (!client) return null;
@@ -88,41 +79,31 @@ export function getAuthUrl() {
   });
 }
 
-/**
- * Exchange authorization code for tokens
- */
 export async function handleCallback(code) {
   const client = getAuthClient();
   if (!client) throw new Error('OAuth client not configured');
 
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
+  _authenticated = true;
 
-  // Save tokens
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
-  logger.info('GOOGLE_AUTH', 'OAuth tokens saved successfully');
+  await IntegrationTokens.set('google', { ...tokens, scopes: SCOPES.join(',') });
+  logger.info('GOOGLE_AUTH', 'OAuth tokens saved to DB');
 
   return tokens;
 }
 
-/**
- * Check if authenticated
- */
 export function isAuthenticated() {
   const client = getAuthClient();
-  return client && client.credentials && client.credentials.access_token;
+  if (_authenticated) return true;
+  return client && client.credentials && !!client.credentials.access_token;
 }
 
-/**
- * Get authenticated Google API service
- */
 export function getService(serviceName, version) {
   const auth = getAuthClient();
   if (!auth || !isAuthenticated()) {
     logger.warn('GOOGLE_AUTH', `Cannot create ${serviceName} service — not authenticated`);
     return null;
   }
-  return google.discover(serviceName)
-    ? google[serviceName]({ version, auth })
-    : null;
+  return google[serviceName]({ version, auth });
 }
