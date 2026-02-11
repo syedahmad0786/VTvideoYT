@@ -53,12 +53,19 @@ jobs:
           # Extract ONLY .vercel.app URLs
           URL=$(grep -oP 'https://[a-zA-Z0-9_-]+\.vercel\.app' /tmp/vercel_output.txt | tail -1 || true)
 
-          # Save error for commit status (sanitize for JSON safety)
-          ERROR_MSG=$(grep -v 'telemetry' /tmp/vercel_output.txt | grep -v 'vercel.com/docs' | tr '\n' ' ' | tr '"' "'" | tr '`' "'" | head -c 130 || true)
+          # Split full output into chunks for multiple commit statuses
+          FULL_OUTPUT=$(grep -v 'telemetry' /tmp/vercel_output.txt | grep -v 'vercel.com/docs' | tr '\n' '|' | tr '"' "'" | tr '`' "'" || true)
+          CHUNK1=$(echo "$FULL_OUTPUT" | head -c 140)
+          CHUNK2=$(echo "$FULL_OUTPUT" | cut -c 141-280)
+          CHUNK3=$(echo "$FULL_OUTPUT" | cut -c 281-420)
+          CHUNK4=$(echo "$FULL_OUTPUT" | cut -c 421-560)
 
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "error=$ERROR_MSG" >> $GITHUB_OUTPUT
+          echo "chunk1=$CHUNK1" >> $GITHUB_OUTPUT
+          echo "chunk2=$CHUNK2" >> $GITHUB_OUTPUT
+          echo "chunk3=$CHUNK3" >> $GITHUB_OUTPUT
+          echo "chunk4=$CHUNK4" >> $GITHUB_OUTPUT
 
           if [ -n "$URL" ]; then
             echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
@@ -70,39 +77,49 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Post result as commit status
+      - name: Post result as commit statuses
         if: always()
         uses: actions/github-script@v7
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-          DEPLOY_ERROR: ${{ steps.deploy.outputs.error }}
           DEPLOY_EXIT: ${{ steps.deploy.outputs.exit_code }}
+          CHUNK1: ${{ steps.deploy.outputs.chunk1 }}
+          CHUNK2: ${{ steps.deploy.outputs.chunk2 }}
+          CHUNK3: ${{ steps.deploy.outputs.chunk3 }}
+          CHUNK4: ${{ steps.deploy.outputs.chunk4 }}
         with:
           script: |
             const url = process.env.DEPLOY_URL || '';
-            const error = process.env.DEPLOY_ERROR || '';
             const exitCode = process.env.DEPLOY_EXIT || 'unknown';
             const sha = context.sha;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
 
             if (url && url.includes('.vercel.app')) {
               await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                sha,
+                owner, repo, sha,
                 state: 'success',
                 target_url: url,
                 description: `Deployed to ${url}`.substring(0, 140),
                 context: 'vercel-deploy'
               });
             } else {
-              await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                sha,
-                state: 'failure',
-                description: (error || `Deploy failed (exit ${exitCode})`).substring(0, 140),
-                context: 'vercel-deploy'
-              });
+              // Post error in multiple statuses to get full output
+              const chunks = [
+                process.env.CHUNK1,
+                process.env.CHUNK2,
+                process.env.CHUNK3,
+                process.env.CHUNK4
+              ].filter(c => c && c.trim());
+
+              for (let i = 0; i < chunks.length; i++) {
+                await github.rest.repos.createCommitStatus({
+                  owner, repo, sha,
+                  state: 'failure',
+                  description: chunks[i].substring(0, 140),
+                  context: `vercel-deploy-log-${i + 1}`
+                });
+              }
             }
 
       - name: Upload debug logs
