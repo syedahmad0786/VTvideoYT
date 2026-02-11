@@ -137,6 +137,13 @@ jobs:
           echo "health_code=$HEALTH_CODE" >> $GITHUB_OUTPUT
           echo "health_body=$(echo "$HEALTH" | head -1 | head -c 140)" >> $GITHUB_OUTPUT
 
+          # Test diagnostics (connectivity check)
+          echo "=== Diagnostics ==="
+          DIAG=$(curl -s --max-time 20 "$URL/api/diag" 2>&1)
+          echo "$DIAG"
+          DIAG_BODY=$(echo "$DIAG" | head -1 | head -c 140)
+          echo "diag_body=$DIAG_BODY" >> $GITHUB_OUTPUT
+
           # Test portal
           echo "=== Portal check ==="
           PORTAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/" 2>&1)
@@ -178,6 +185,7 @@ jobs:
           PORTAL_CODE: ${{ steps.test.outputs.portal_code }}
           CHAT_CODE: ${{ steps.test.outputs.chat_code }}
           CHAT_BODY: ${{ steps.test.outputs.chat_body }}
+          DIAG_BODY: ${{ steps.test.outputs.diag_body }}
         with:
           script: |
             const sha = context.sha;
@@ -208,6 +216,11 @@ jobs:
             const pc = process.env.PORTAL_CODE || '?';
             await post('vercel-portal', ['200','304'].includes(pc) ? 'success' : 'failure',
               `Portal: HTTP ${pc}`);
+
+            // Diagnostics
+            const db = process.env.DIAG_BODY || '';
+            await post('vercel-diag', db.includes('"ok":true') ? 'success' : 'failure',
+              `Diag: ${db}`);
 
             // Chat (agent test)
             const cc = process.env.CHAT_CODE || '?';

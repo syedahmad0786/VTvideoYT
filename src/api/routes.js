@@ -38,6 +38,46 @@ router.get('/health', (req, res) => {
   });
 });
 
+// ─── Diagnostics ──────────────────────────────────────────────
+
+router.get('/diag', async (req, res) => {
+  const diag = {
+    env: {
+      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+      apiKeyLen: (process.env.ANTHROPIC_API_KEY || '').trim().length,
+      model: (process.env.AI_MODEL || 'default').trim(),
+      nodeEnv: process.env.NODE_ENV,
+      hasTurso: !!process.env.TURSO_DATABASE_URL,
+      hasGoogleId: !!process.env.GOOGLE_CLIENT_ID,
+      region: process.env.VERCEL_REGION || 'unknown',
+    },
+    connectivity: {},
+  };
+
+  // Test Anthropic API connectivity
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': (process.env.ANTHROPIC_API_KEY || '').trim(),
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ model: diag.env.model, max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const body = await resp.text();
+    diag.connectivity.anthropic = { status: resp.status, ok: resp.ok, body: body.substring(0, 200) };
+  } catch (e) {
+    diag.connectivity.anthropic = { error: e.message, type: e.constructor?.name };
+  }
+
+  res.json(diag);
+});
+
 // ─── Agent Chat ──────────────────────────────────────────────
 
 router.post('/chat', async (req, res) => {

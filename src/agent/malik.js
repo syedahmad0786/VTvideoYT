@@ -11,8 +11,8 @@ import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.AI_MODEL || 'claude-sonnet-4-20250514';
+const anthropic = new Anthropic({ apiKey: (process.env.ANTHROPIC_API_KEY || '').trim() });
+const MODEL = (process.env.AI_MODEL || 'claude-sonnet-4-20250514').trim();
 
 export class MalikAgent {
   constructor() {
