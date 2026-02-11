@@ -40,7 +40,7 @@ jobs:
 
           echo "=== Deploying to production ==="
           EXIT_CODE=0
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" > /tmp/vercel_output.txt 2>&1 || EXIT_CODE=$?
+          vercel deploy --prod --yes --name=vtvideoyt --token="$VERCEL_TOKEN" > /tmp/vercel_output.txt 2>&1 || EXIT_CODE=$?
 
           echo "=== Vercel exit code: $EXIT_CODE ==="
           echo "=== Full output ==="
