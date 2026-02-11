@@ -20,55 +20,59 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Debug - Check token exists
-        run: |
-          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
-            echo "::error::VERCEL_TOKEN secret is not set! Go to repo Settings > Secrets > Actions and add it."
-            exit 1
-          fi
-          echo "VERCEL_TOKEN is set (length: ${#TOKEN})"
-        env:
-          TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to Vercel Production
         id: deploy
         run: |
-          set -e
           echo "=== Starting Vercel deployment ==="
-          echo "=== Running: vercel --prod --yes ==="
 
-          # Single command that handles project creation + build + deploy
-          OUTPUT=$(vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}" 2>&1) || {
-            echo "::error::Vercel deploy failed!"
-            echo "$OUTPUT"
-            exit 1
-          }
+          # Run vercel and capture all output to a file for debugging
+          vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}" > /tmp/vercel_output.txt 2>&1 || true
 
           echo "=== Full vercel output ==="
-          echo "$OUTPUT"
+          cat /tmp/vercel_output.txt
           echo "=== End output ==="
 
-          # Extract the deployment URL
-          URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+\.vercel\.app[^\s]*' | tail -1)
+          # Save output for artifact upload
+          cp /tmp/vercel_output.txt ${{ github.workspace }}/vercel_output.txt
+
+          # Extract URL
+          URL=$(grep -oP 'https://[^\s]+\.vercel\.app[^\s]*' /tmp/vercel_output.txt | tail -1 || true)
 
           if [ -z "$URL" ]; then
-            # Try broader URL matching
-            URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+' | tail -1)
-          fi
-
-          if [ -z "$URL" ]; then
-            echo "::error::Could not find deployment URL in output"
-            exit 1
+            URL=$(grep -oP 'https://[^\s]+' /tmp/vercel_output.txt | tail -1 || true)
           fi
 
           echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Production URL:** $URL" >> $GITHUB_STEP_SUMMARY
 
-      - name: Print Deployment URL
+          if [ -n "$URL" ]; then
+            echo "### Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
+            echo "**Production URL:** $URL" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Deployment failed :x:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat /tmp/vercel_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload debug logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-deploy-logs
+          path: vercel_output.txt
+          retention-days: 3
+
+      - name: Print Result
         if: always()
         run: |
-          echo "============================================"
-          echo "  DEPLOYMENT URL: ${{ steps.deploy.outputs.url }}"
-          echo "============================================"
+          if [ -n "${{ steps.deploy.outputs.url }}" ]; then
+            echo "============================================"
+            echo "  SUCCESS! URL: ${{ steps.deploy.outputs.url }}"
+            echo "============================================"
+          else
+            echo "============================================"
+            echo "  DEPLOYMENT FAILED - check artifact logs"
+            echo "============================================"
+            cat vercel_output.txt 2>/dev/null || true
+            exit 1
+          fi
