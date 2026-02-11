@@ -120,8 +120,6 @@ jobs:
         run: |
           URL="${DEPLOY_URL:-https://vtvideoyt.vercel.app}"
           echo "Testing: $URL"
-
-          # Wait for deployment to propagate
           sleep 10
 
           # Test health endpoint
@@ -138,6 +136,30 @@ jobs:
           echo "Portal: HTTP $PORTAL_CODE"
           echo "portal_code=$PORTAL_CODE" >> $GITHUB_OUTPUT
 
+          # Test agent status
+          echo "=== Agent status ==="
+          STATUS=$(curl -s -w "\nHTTP:%{http_code}" "$URL/api/status" 2>&1)
+          echo "$STATUS"
+          STATUS_CODE=$(echo "$STATUS" | grep "HTTP:" | cut -d: -f2)
+          echo "status_code=$STATUS_CODE" >> $GITHUB_OUTPUT
+
+          # Test chat (autonomous agent)
+          echo "=== Chat test ==="
+          CHAT=$(curl -s -w "\nHTTP:%{http_code}" -X POST "$URL/api/chat" \
+            -H "Content-Type: application/json" \
+            -d '{"message":"Hello Malik. Run a quick status check — what systems are you connected to and what can you do right now?"}' \
+            --max-time 60 2>&1)
+          echo "$CHAT"
+          CHAT_CODE=$(echo "$CHAT" | grep "HTTP:" | cut -d: -f2)
+          CHAT_BODY=$(echo "$CHAT" | head -1 | head -c 140)
+          echo "chat_code=$CHAT_CODE" >> $GITHUB_OUTPUT
+          echo "chat_body=$CHAT_BODY" >> $GITHUB_OUTPUT
+
+          # Test auth status
+          echo "=== Auth status ==="
+          AUTH=$(curl -s "$URL/api/auth/status" 2>&1)
+          echo "$AUTH"
+
       - name: Post results as commit statuses
         if: always()
         uses: actions/github-script@v7
@@ -147,46 +169,43 @@ jobs:
           HEALTH_CODE: ${{ steps.test.outputs.health_code }}
           HEALTH_BODY: ${{ steps.test.outputs.health_body }}
           PORTAL_CODE: ${{ steps.test.outputs.portal_code }}
+          CHAT_CODE: ${{ steps.test.outputs.chat_code }}
+          CHAT_BODY: ${{ steps.test.outputs.chat_body }}
         with:
           script: |
             const sha = context.sha;
             const {owner, repo} = context.repo;
             const url = process.env.DEPLOY_URL || '';
+            const post = async (ctx, state, desc, targetUrl) => {
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha, state,
+                description: (desc || '').substring(0, 140),
+                context: ctx,
+                ...(targetUrl ? {target_url: targetUrl} : {})
+              });
+            };
 
-            // Deploy status
+            // Deploy
             if (url && url.includes('.vercel.app')) {
-              await github.rest.repos.createCommitStatus({
-                owner, repo, sha, state: 'success',
-                target_url: url,
-                description: `Deployed to ${url}`.substring(0, 140),
-                context: 'vercel-deploy'
-              });
+              await post('vercel-deploy', 'success', `Deployed to ${url}`, url);
             } else {
-              await github.rest.repos.createCommitStatus({
-                owner, repo, sha, state: 'failure',
-                description: (process.env.DEPLOY_EXIT || 'failed').substring(0, 140),
-                context: 'vercel-deploy'
-              });
+              await post('vercel-deploy', 'failure', process.env.DEPLOY_EXIT || 'failed');
             }
 
-            // Health test status
+            // Health
             const hc = process.env.HEALTH_CODE || '?';
-            const hb = process.env.HEALTH_BODY || '';
-            await github.rest.repos.createCommitStatus({
-              owner, repo, sha,
-              state: hc === '200' ? 'success' : 'failure',
-              description: `Health: HTTP ${hc} | ${hb}`.substring(0, 140),
-              context: 'vercel-health'
-            });
+            await post('vercel-health', hc === '200' ? 'success' : 'failure',
+              `Health: HTTP ${hc} | ${process.env.HEALTH_BODY || ''}`);
 
-            // Portal test status
+            // Portal
             const pc = process.env.PORTAL_CODE || '?';
-            await github.rest.repos.createCommitStatus({
-              owner, repo, sha,
-              state: ['200','304'].includes(pc) ? 'success' : 'failure',
-              description: `Portal: HTTP ${pc}`,
-              context: 'vercel-portal'
-            });
+            await post('vercel-portal', ['200','304'].includes(pc) ? 'success' : 'failure',
+              `Portal: HTTP ${pc}`);
+
+            // Chat (agent test)
+            const cc = process.env.CHAT_CODE || '?';
+            await post('vercel-agent-chat', cc === '200' ? 'success' : 'failure',
+              `Chat: HTTP ${cc} | ${process.env.CHAT_BODY || ''}`);
 
       - name: Upload logs
         if: always()
