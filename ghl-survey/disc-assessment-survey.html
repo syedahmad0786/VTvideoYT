@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Back Pain Assessment</title>
+  <style>
+    :root {
+      --primary: #1a365d;
+      --primary-light: #2a4a7f;
+      --accent: #2b6cb0;
+      --accent-hover: #2c5282;
+      --success: #276749;
+      --success-bg: #f0fff4;
+      --warning: #c05621;
+      --warning-bg: #fffaf0;
+      --bg: #f7fafc;
+      --card-bg: #ffffff;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    /* Progress bar */
+    .progress-wrapper {
+      margin-bottom: 32px;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+    .progress-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: right;
+    }
+
+    /* Step cards */
+    .step {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .step.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+
+    /* Entry hook (Step 1) */
+    .entry-hook {
+      text-align: center;
+      padding: 48px 32px;
+    }
+    .entry-hook h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+    .entry-hook p {
+      font-size: 17px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Questions */
+    .question-label {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    .question-sublabel {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: -16px;
+      margin-bottom: 24px;
+    }
+
+    /* Option buttons */
+    .options { display: flex; flex-direction: column; gap: 10px; }
+
+    .option-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-bg);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      font-size: 15px;
+      color: var(--text);
+      width: 100%;
+    }
+    .option-btn:hover {
+      border-color: var(--accent);
+      background: #ebf4ff;
+    }
+    .option-btn.selected {
+      border-color: var(--accent);
+      background: #ebf8ff;
+      font-weight: 500;
+    }
+
+    .option-radio, .option-check {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .option-check { border-radius: 4px; }
+    .option-btn.selected .option-radio,
+    .option-btn.selected .option-check {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+    .option-btn.selected .option-radio::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+    }
+    .option-btn.selected .option-check::after {
+      content: '';
+      width: 10px;
+      height: 6px;
+      border-left: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(-45deg);
+      margin-top: -2px;
+    }
+
+    /* Conditional follow-up */
+    .conditional {
+      display: none;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      animation: fadeIn 0.3s ease;
+    }
+    .conditional.visible { display: block; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+      color: white;
+      box-shadow: 0 4px 12px rgba(26,54,93,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(26,54,93,0.4);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 14px 20px;
+    }
+    .btn-secondary:hover { color: var(--text); }
+
+    .btn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 32px;
+    }
+
+    /* Contact form */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Results */
+    .result-card {
+      text-align: center;
+    }
+    .result-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+    .result-badge.high {
+      background: #fed7d7;
+      color: #9b2c2c;
+    }
+    .result-badge.medium {
+      background: #fefcbf;
+      color: #975a16;
+    }
+    .result-badge.low {
+      background: #c6f6d5;
+      color: #276749;
+    }
+
+    .result-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+    .result-text {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    .next-steps {
+      text-align: left;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .next-steps h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .next-steps ul {
+      list-style: none;
+      padding: 0;
+    }
+    .next-steps li {
+      padding: 8px 0;
+      padding-left: 28px;
+      position: relative;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .next-steps li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 16px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 50%;
+      opacity: 0.2;
+    }
+    .next-steps li::after {
+      content: '\2713';
+      position: absolute;
+      left: 3px;
+      top: 8px;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .trust-nudge {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 24px;
+      font-style: italic;
+    }
+
+    /* Calendar embed placeholder */
+    .calendar-embed {
+      margin: 24px 0;
+      padding: 24px;
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .calendar-embed p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      background: #fff5f5;
+      color: #c53030;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      .container { padding: 16px 12px; }
+      .card { padding: 24px 20px; }
+      .entry-hook { padding: 32px 20px; }
+      .entry-hook h1 { font-size: 24px; }
+      .question-label { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Progress -->
+    <div class="progress-wrapper" id="progressWrapper" style="display:none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="progress-text" id="progressText">Step 1 of 5</div>
+    </div>
+
+    <!-- STEP 1: Entry Hook -->
+    <div class="step active" id="step1">
+      <div class="card entry-hook">
+        <h1>Is your back pain a simple strain, or something more serious?</h1>
+        <p>Answer 5 quick questions to see whether advanced disc care is appropriate for you.</p>
+        <button class="btn btn-primary" onclick="startAssessment()">Start Assessment</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Pain Profile -->
+    <div class="step" id="step2">
+      <div class="card">
+        <div class="question-label">Which best describes your symptoms?</div>
+        <div class="options" id="symptomOptions">
+          <button class="option-btn" data-value="back_only" data-score="1" onclick="selectSingle(this, 'symptomOptions')">
+            <span class="option-radio"></span>Back pain only
+          </button>
+          <button class="option-btn" data-value="back_leg" data-score="2" onclick="selectSingle(this, 'symptomOptions')">
+            <span class="option-radio"></span>Back pain with leg pain
+          </button>
+          <button class="option-btn" data-value="leg_below_knee" data-score="3" onclick="selectSingle(this, 'symptomOptions')">
+            <span class="option-radio"></span>Leg pain below the knee
+          </button>
+          <button class="option-btn" data-value="neuro" data-score="4" onclick="selectSingle(this, 'symptomOptions')">
+            <span class="option-radio"></span>Numbness, tingling, or weakness
+          </button>
+          <button class="option-btn" data-value="constant_worsening" data-score="5" onclick="selectSingle(this, 'symptomOptions')">
+            <span class="option-radio"></span>Pain is constant and worsening
+          </button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goBack()">Back</button>
+          <button class="btn btn-primary" id="step2Next" disabled onclick="goNext()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Duration & Behaviour -->
+    <div class="step" id="step3">
+      <div class="card">
+        <div class="question-label">How long has this been affecting you?</div>
+        <div class="options" id="durationOptions">
+          <button class="option-btn" data-value="lt_2w" data-score="1" onclick="selectSingle(this, 'durationOptions'); checkDurationConditional()">
+            <span class="option-radio"></span>Less than 2 weeks
+          </button>
+          <button class="option-btn" data-value="2_6w" data-score="2" onclick="selectSingle(this, 'durationOptions'); checkDurationConditional()">
+            <span class="option-radio"></span>2&ndash;6 weeks
+          </button>
+          <button class="option-btn" data-value="6w_6m" data-score="3" onclick="selectSingle(this, 'durationOptions'); checkDurationConditional()">
+            <span class="option-radio"></span>6 weeks to 6 months
+          </button>
+          <button class="option-btn" data-value="gt_6m" data-score="4" onclick="selectSingle(this, 'durationOptions'); checkDurationConditional()">
+            <span class="option-radio"></span>More than 6 months
+          </button>
+          <button class="option-btn" data-value="recurring" data-score="3" onclick="selectSingle(this, 'durationOptions'); checkDurationConditional()">
+            <span class="option-radio"></span>Comes and goes but never fully settles
+          </button>
+        </div>
+
+        <!-- Conditional: failed standard care -->
+        <div class="conditional" id="failedCareSection">
+          <div class="question-label" style="font-size:17px;">Has it failed to improve with rest, physio, or standard care?</div>
+          <div class="options" id="failedCareOptions">
+            <button class="option-btn" data-value="yes" data-score="3" onclick="selectSingle(this, 'failedCareOptions')">
+              <span class="option-radio"></span>Yes
+            </button>
+            <button class="option-btn" data-value="no" data-score="0" onclick="selectSingle(this, 'failedCareOptions')">
+              <span class="option-radio"></span>No
+            </button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goBack()">Back</button>
+          <button class="btn btn-primary" id="step3Next" disabled onclick="goNext()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: Red-Flag Disc Indicators -->
+    <div class="step" id="step4">
+      <div class="card">
+        <div class="question-label">Which of these apply to you?</div>
+        <div class="question-sublabel">Select all that apply.</div>
+        <div class="options" id="redFlagOptions">
+          <button class="option-btn" data-value="sitting" data-score="2" onclick="selectMulti(this, 'redFlagOptions')">
+            <span class="option-check"></span>Pain worse with sitting
+          </button>
+          <button class="option-btn" data-value="bending" data-score="2" onclick="selectMulti(this, 'redFlagOptions')">
+            <span class="option-check"></span>Pain with bending or lifting
+          </button>
+          <button class="option-btn" data-value="coughing" data-score="2" onclick="selectMulti(this, 'redFlagOptions')">
+            <span class="option-check"></span>Coughing or sneezing increases pain
+          </button>
+          <button class="option-btn" data-value="stiffness" data-score="2" onclick="selectMulti(this, 'redFlagOptions')">
+            <span class="option-check"></span>Morning stiffness that takes time to ease
+          </button>
+          <button class="option-btn" data-value="mri_disc" data-score="4" onclick="selectMulti(this, 'redFlagOptions')">
+            <span class="option-check"></span>MRI or scan has shown disc bulge or herniation
+          </button>
+          <button class="option-btn" data-value="none" data-score="0" onclick="selectExclusive(this, 'redFlagOptions')">
+            <span class="option-check"></span>None of the above
+          </button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goBack()">Back</button>
+          <button class="btn btn-primary" id="step4Next" disabled onclick="goNext()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5: Impact & Motivation -->
+    <div class="step" id="step5">
+      <div class="card">
+        <div class="question-label">How is this affecting your life right now?</div>
+        <div class="options" id="impactOptions">
+          <button class="option-btn" data-value="mild" data-score="1" onclick="selectSingle(this, 'impactOptions')">
+            <span class="option-radio"></span>Mild inconvenience
+          </button>
+          <button class="option-btn" data-value="exercise" data-score="2" onclick="selectSingle(this, 'impactOptions')">
+            <span class="option-radio"></span>Stopping exercise or sport
+          </button>
+          <button class="option-btn" data-value="work_sleep" data-score="3" onclick="selectSingle(this, 'impactOptions')">
+            <span class="option-radio"></span>Affecting work or sleep
+          </button>
+          <button class="option-btn" data-value="constant" data-score="4" onclick="selectSingle(this, 'impactOptions')">
+            <span class="option-radio"></span>Constantly on my mind
+          </button>
+          <button class="option-btn" data-value="worried" data-score="5" onclick="selectSingle(this, 'impactOptions')">
+            <span class="option-radio"></span>I&rsquo;m worried about long-term damage
+          </button>
+        </div>
+
+        <div class="conditional visible" id="commitmentSection" style="display:none;">
+          <div class="question-label" style="font-size:17px;">If a structured plan could improve this, how committed would you be?</div>
+          <div class="options" id="commitmentOptions">
+            <button class="option-btn" data-value="curious" data-score="1" onclick="selectSingle(this, 'commitmentOptions')">
+              <span class="option-radio"></span>Just curious
+            </button>
+            <button class="option-btn" data-value="open" data-score="2" onclick="selectSingle(this, 'commitmentOptions')">
+              <span class="option-radio"></span>Open to options
+            </button>
+            <button class="option-btn" data-value="active" data-score="3" onclick="selectSingle(this, 'commitmentOptions')">
+              <span class="option-radio"></span>Actively looking for a solution
+            </button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goBack()">Back</button>
+          <button class="btn btn-primary" id="step5Next" disabled onclick="goNext()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6: Contact Info -->
+    <div class="step" id="step6">
+      <div class="card">
+        <div class="question-label">Almost done — where should we send your results?</div>
+        <div class="form-group">
+          <label for="firstName">First name</label>
+          <input type="text" id="firstName" placeholder="John" required />
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last name</label>
+          <input type="text" id="lastName" placeholder="Smith" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="john@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" placeholder="+1 (555) 123-4567" required />
+        </div>
+        <div class="error-msg" id="submitError"></div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goBack()">Back</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="submitSurvey()">See My Results</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 7: Results -->
+    <div class="step" id="step7">
+      <div class="card result-card">
+        <div class="result-badge" id="resultBadge">Assessment Complete</div>
+        <div class="result-title" id="resultTitle"></div>
+        <div class="result-text" id="resultText"></div>
+
+        <div class="next-steps" id="nextStepsHigh" style="display:none;">
+          <h3>What happens next:</h3>
+          <ul>
+            <li>Advanced clinical assessment</li>
+            <li>Imaging review if appropriate</li>
+            <li>Suitability check for our disc injury protocols</li>
+          </ul>
+        </div>
+
+        <div class="next-steps" id="nextStepsMedium" style="display:none;">
+          <h3>Recommended next steps:</h3>
+          <ul>
+            <li>Clinical assessment to determine the source of your symptoms</li>
+            <li>Review of your current care approach</li>
+            <li>Personalised guidance on structured recovery</li>
+          </ul>
+        </div>
+
+        <div class="next-steps" id="nextStepsLow" style="display:none;">
+          <h3>What we recommend:</h3>
+          <ul>
+            <li>Monitor your symptoms over the coming weeks</li>
+            <li>Review the educational resources we'll send you</li>
+            <li>Reassess if symptoms persist or worsen</li>
+          </ul>
+        </div>
+
+        <!-- CTA for high/medium -->
+        <div id="ctaBooking" style="display:none;">
+          <a href="#" class="btn btn-primary" id="bookingBtn" style="width:100%;margin-bottom:16px;">
+            Check Availability for an Advanced Assessment
+          </a>
+          <!-- Replace with your actual GHL calendar embed -->
+          <div class="calendar-embed" id="calendarEmbed">
+            <p><strong>Calendar will load here</strong></p>
+            <p>Replace this div with your GHL calendar embed code<br/>
+            or set the booking link in the button above.</p>
+          </div>
+        </div>
+
+        <div class="trust-nudge" id="trustNudge" style="display:none;">
+          Trusted by patients with complex, chronic, or previously unresolved spine conditions.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+     * CONFIGURATION — Update these values after running
+     * setup-custom-fields.js to get the actual field keys.
+     * ============================================================ */
+    const CONFIG = {
+      // GHL API
+      apiBase: 'https://services.leadconnectorhq.com',
+      apiKey: 'pit-d71f92a0-4b3b-4bbf-8b93-91ec0b9edba1',
+      apiVersion: '2021-07-28',
+      locationId: '3dHuFKR0LR9rJQCBD6tx',
+
+      // Custom field keys (created in GHL)
+      fields: {
+        symptomProfile: 'contact.disc_survey__symptom_profile',
+        painDuration: 'contact.disc_survey__pain_duration',
+        failedCare: 'contact.disc_survey__failed_standard_care',
+        redFlags: 'contact.disc_survey__red_flag_indicators',
+        lifeImpact: 'contact.disc_survey__life_impact',
+        commitment: 'contact.disc_survey__commitment_level',
+        score: 'contact.disc_survey__qualification_score',
+        tier: 'contact.disc_survey__qualification_tier',
+        completedAt: 'contact.disc_survey__completed_at',
+      },
+
+      // Booking link — replace with your actual GHL calendar link
+      bookingUrl: '#',
+
+      // Score thresholds
+      thresholds: {
+        high: 18,   // Score >= 18 = high qualification
+        medium: 10,  // Score >= 10 = medium qualification
+        // Below 10 = low
+      },
+    };
+
+    /* ============================================================
+     * STATE
+     * ============================================================ */
+    let currentStep = 1;
+    const totalSteps = 7;
+    const answers = {
+      symptoms: null,
+      duration: null,
+      failedCare: null,
+      redFlags: [],
+      impact: null,
+      commitment: null,
+    };
+    const scores = {
+      symptoms: 0,
+      duration: 0,
+      failedCare: 0,
+      redFlags: 0,
+      impact: 0,
+      commitment: 0,
+    };
+
+    /* ============================================================
+     * NAVIGATION
+     * ============================================================ */
+    function showStep(n) {
+      document.querySelectorAll('.step').forEach((s) => s.classList.remove('active'));
+      const step = document.getElementById('step' + n);
+      if (step) step.classList.add('active');
+      currentStep = n;
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const wrapper = document.getElementById('progressWrapper');
+      if (currentStep === 1 || currentStep === 7) {
+        wrapper.style.display = 'none';
+        return;
+      }
+      wrapper.style.display = 'block';
+      const stepsForProgress = 5; // Steps 2-6
+      const current = currentStep - 1;
+      const pct = Math.round((current / stepsForProgress) * 100);
+      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressText').textContent =
+        'Step ' + current + ' of ' + stepsForProgress;
+    }
+
+    function startAssessment() {
+      showStep(2);
+    }
+
+    function goNext() {
+      if (currentStep === 5) {
+        // Show commitment question after impact is selected
+        const commitSection = document.getElementById('commitmentSection');
+        if (commitSection.style.display === 'none') {
+          commitSection.style.display = 'block';
+          document.getElementById('step5Next').disabled = true;
+          return;
+        }
+      }
+      showStep(currentStep + 1);
+    }
+
+    function goBack() {
+      if (currentStep === 5) {
+        const commitSection = document.getElementById('commitmentSection');
+        if (commitSection.style.display === 'block' && answers.commitment !== null) {
+          // If commitment is visible and answered, first hide it
+          commitSection.style.display = 'none';
+          answers.commitment = null;
+          scores.commitment = 0;
+          document.querySelectorAll('#commitmentOptions .option-btn').forEach(
+            (b) => b.classList.remove('selected')
+          );
+          document.getElementById('step5Next').disabled = false;
+          return;
+        }
+      }
+      showStep(currentStep - 1);
+    }
+
+    /* ============================================================
+     * SELECTION HANDLERS
+     * ============================================================ */
+    function selectSingle(btn, groupId) {
+      const group = document.getElementById(groupId);
+      group.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      const value = btn.dataset.value;
+      const score = parseInt(btn.dataset.score, 10);
+
+      // Map group to answer
+      switch (groupId) {
+        case 'symptomOptions':
+          answers.symptoms = value;
+          scores.symptoms = score;
+          document.getElementById('step2Next').disabled = false;
+          break;
+        case 'durationOptions':
+          answers.duration = value;
+          scores.duration = score;
+          document.getElementById('step3Next').disabled = false;
+          break;
+        case 'failedCareOptions':
+          answers.failedCare = value;
+          scores.failedCare = score;
+          break;
+        case 'impactOptions':
+          answers.impact = value;
+          scores.impact = score;
+          // Show commitment section
+          const commitSection = document.getElementById('commitmentSection');
+          if (commitSection.style.display === 'none') {
+            commitSection.style.display = 'block';
+            document.getElementById('step5Next').disabled = true;
+          } else if (answers.commitment !== null) {
+            document.getElementById('step5Next').disabled = false;
+          }
+          break;
+        case 'commitmentOptions':
+          answers.commitment = value;
+          scores.commitment = score;
+          document.getElementById('step5Next').disabled = false;
+          break;
+      }
+    }
+
+    function selectMulti(btn, groupId) {
+      // Deselect "None" if selecting something else
+      const noneBtn = document.querySelector(`#${groupId} [data-value="none"]`);
+      if (noneBtn) noneBtn.classList.remove('selected');
+
+      btn.classList.toggle('selected');
+      updateMultiAnswers(groupId);
+    }
+
+    function selectExclusive(btn, groupId) {
+      // "None of the above" — deselect all others
+      const group = document.getElementById(groupId);
+      group.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      updateMultiAnswers(groupId);
+    }
+
+    function updateMultiAnswers(groupId) {
+      const group = document.getElementById(groupId);
+      const selected = group.querySelectorAll('.option-btn.selected');
+      const values = [];
+      let totalScore = 0;
+      selected.forEach((b) => {
+        values.push(b.dataset.value);
+        totalScore += parseInt(b.dataset.score, 10);
+      });
+
+      if (groupId === 'redFlagOptions') {
+        answers.redFlags = values;
+        scores.redFlags = totalScore;
+        document.getElementById('step4Next').disabled = values.length === 0;
+      }
+    }
+
+    /* ============================================================
+     * CONDITIONAL LOGIC
+     * ============================================================ */
+    function checkDurationConditional() {
+      const val = answers.duration;
+      const section = document.getElementById('failedCareSection');
+      // Show follow-up if > 6 weeks, > 6 months, or recurring
+      if (val === '6w_6m' || val === 'gt_6m' || val === 'recurring') {
+        section.classList.add('visible');
+      } else {
+        section.classList.remove('visible');
+        answers.failedCare = null;
+        scores.failedCare = 0;
+        document.querySelectorAll('#failedCareOptions .option-btn').forEach(
+          (b) => b.classList.remove('selected')
+        );
+      }
+    }
+
+    /* ============================================================
+     * SCORING
+     * ============================================================ */
+    function calculateScore() {
+      return (
+        scores.symptoms +
+        scores.duration +
+        scores.failedCare +
+        scores.redFlags +
+        scores.impact +
+        scores.commitment
+      );
+    }
+
+    function getTier(score) {
+      if (score >= CONFIG.thresholds.high) return 'High';
+      if (score >= CONFIG.thresholds.medium) return 'Medium';
+      return 'Low';
+    }
+
+    /* ============================================================
+     * LABEL MAPS
+     * ============================================================ */
+    const symptomLabels = {
+      back_only: 'Back pain only',
+      back_leg: 'Back pain with leg pain',
+      leg_below_knee: 'Leg pain below the knee',
+      neuro: 'Numbness, tingling, or weakness',
+      constant_worsening: 'Pain is constant and worsening',
+    };
+    const durationLabels = {
+      lt_2w: 'Less than 2 weeks',
+      '2_6w': '2-6 weeks',
+      '6w_6m': '6 weeks to 6 months',
+      gt_6m: 'More than 6 months',
+      recurring: 'Comes and goes but never fully settles',
+    };
+    const redFlagLabels = {
+      sitting: 'Pain worse with sitting',
+      bending: 'Pain with bending or lifting',
+      coughing: 'Coughing or sneezing increases pain',
+      stiffness: 'Morning stiffness that takes time to ease',
+      mri_disc: 'MRI or scan has shown disc bulge or herniation',
+      none: 'None of the above',
+    };
+    const impactLabels = {
+      mild: 'Mild inconvenience',
+      exercise: 'Stopping exercise or sport',
+      work_sleep: 'Affecting work or sleep',
+      constant: 'Constantly on my mind',
+      worried: 'I am worried about long-term damage',
+    };
+    const commitmentLabels = {
+      curious: 'Just curious',
+      open: 'Open to options',
+      active: 'Actively looking for a solution',
+    };
+
+    /* ============================================================
+     * SUBMIT TO GHL
+     * ============================================================ */
+    async function submitSurvey() {
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName = document.getElementById('lastName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const errorEl = document.getElementById('submitError');
+      const submitBtn = document.getElementById('submitBtn');
+
+      // Validate
+      if (!firstName || !email || !phone) {
+        errorEl.textContent = 'Please fill in all required fields.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      errorEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span>Processing...';
+
+      const totalScore = calculateScore();
+      const tier = getTier(totalScore);
+      const now = new Date().toISOString();
+
+      // Build custom field data
+      const customFields = [
+        { key: CONFIG.fields.symptomProfile, field_value: symptomLabels[answers.symptoms] || '' },
+        { key: CONFIG.fields.painDuration, field_value: durationLabels[answers.duration] || '' },
+        { key: CONFIG.fields.failedCare, field_value: answers.failedCare === 'yes' ? 'Yes' : (answers.failedCare === 'no' ? 'No' : '') },
+        { key: CONFIG.fields.redFlags, field_value: answers.redFlags.map((v) => redFlagLabels[v] || v) },
+        { key: CONFIG.fields.lifeImpact, field_value: impactLabels[answers.impact] || '' },
+        { key: CONFIG.fields.commitment, field_value: commitmentLabels[answers.commitment] || '' },
+        { key: CONFIG.fields.score, field_value: String(totalScore) },
+        { key: CONFIG.fields.tier, field_value: tier },
+        { key: CONFIG.fields.completedAt, field_value: now },
+      ];
+
+      const body = {
+        firstName,
+        lastName: lastName || undefined,
+        email,
+        phone,
+        locationId: CONFIG.locationId,
+        source: 'Disc Assessment Survey',
+        tags: ['disc-assessment', `disc-tier-${tier.toLowerCase()}`],
+        customFields,
+      };
+
+      try {
+        // Create or update contact in GHL
+        const res = await fetch(`${CONFIG.apiBase}/contacts/upsert`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${CONFIG.apiKey}`,
+            'Content-Type': 'application/json',
+            Version: CONFIG.apiVersion,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Request failed (${res.status})`);
+        }
+
+        // Show results
+        showResults(totalScore, tier);
+      } catch (err) {
+        errorEl.textContent = 'Something went wrong. Please try again. (' + err.message + ')';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'See My Results';
+      }
+    }
+
+    /* ============================================================
+     * RESULTS DISPLAY
+     * ============================================================ */
+    function showResults(score, tier) {
+      const badge = document.getElementById('resultBadge');
+      const title = document.getElementById('resultTitle');
+      const text = document.getElementById('resultText');
+
+      if (tier === 'High') {
+        badge.className = 'result-badge high';
+        badge.textContent = 'Advanced Assessment Recommended';
+        title.textContent =
+          'Your answers suggest your symptoms are consistent with a disc-related problem rather than simple muscular back pain.';
+        text.textContent =
+          'Patients with a similar profile often require more advanced assessment and structured care — not generic exercises or short-term fixes. We recommend a thorough clinical evaluation to determine the best path forward for you.';
+        document.getElementById('nextStepsHigh').style.display = 'block';
+        document.getElementById('ctaBooking').style.display = 'block';
+        document.getElementById('trustNudge').style.display = 'block';
+        document.getElementById('bookingBtn').href = CONFIG.bookingUrl;
+      } else if (tier === 'Medium') {
+        badge.className = 'result-badge medium';
+        badge.textContent = 'Further Evaluation Recommended';
+        title.textContent =
+          'Your symptoms indicate something that warrants closer investigation.';
+        text.textContent =
+          'While this may or may not be disc-related, the pattern of your symptoms suggests that a structured clinical assessment could provide the clarity you need. Understanding the root cause is the first step to effective treatment.';
+        document.getElementById('nextStepsMedium').style.display = 'block';
+        document.getElementById('ctaBooking').style.display = 'block';
+        document.getElementById('trustNudge').style.display = 'block';
+        document.getElementById('bookingBtn').href = CONFIG.bookingUrl;
+      } else {
+        badge.className = 'result-badge low';
+        badge.textContent = 'Monitoring Recommended';
+        title.textContent =
+          'Based on your answers, your symptoms may resolve with standard care.';
+        text.textContent =
+          'We\'ll send you some educational resources to help you manage your symptoms effectively. If things don\'t improve or your symptoms change, we\'re here to help with a more detailed assessment.';
+        document.getElementById('nextStepsLow').style.display = 'block';
+      }
+
+      showStep(7);
+    }
+  </script>
+</body>
+</html>
