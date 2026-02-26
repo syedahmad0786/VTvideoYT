@@ -3,12 +3,13 @@
   "buildCommand": "cd portal && npm install && npm run build",
   "outputDirectory": "portal/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/index.js": {
-      "memory": 1024,
-      "maxDuration": 30
+    "api/**/*.js": {
+      "memory": 256,
+      "maxDuration": 10
     }
   }
 }

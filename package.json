@@ -1,15 +1,17 @@
 {
-  "name": "claude-workspace-template",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "hrmny-sales-growth",
+  "version": "2.0.0",
+  "description": "hrmny Sales & Growth Workspace",
+  "main": "api/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "cd portal && npm run dev",
+    "build": "cd portal && npm install && npm run build",
+    "preview": "cd portal && npm run preview"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["sales", "growth", "crm"],
+  "author": "hrmny",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@google/clasp": "^3.2.0"
   }

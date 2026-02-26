@@ -1,16 +1,9 @@
-// ─── Vercel Serverless Entry Point ──────────────────────────
-import dotenv from 'dotenv';
-dotenv.config();
-
-import app from '../src/app.js';
-import { malik } from '../src/agent/malik.js';
-
-let initialized = false;
-
-export default async function handler(req, res) {
-  if (!initialized) {
-    await malik.initialize();
-    initialized = true;
-  }
-  return app(req, res);
+// hrmny Sales & Growth — API Health Check
+export default function handler(req, res) {
+  res.json({
+    status: 'ok',
+    name: 'hrmny Sales & Growth API',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+  });
 }
