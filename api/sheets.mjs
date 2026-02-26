@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       demo: true,
       rows: [],
-      message: 'SHEETS_WEBHOOK_URL not configured. Set it in Vercel project settings.',
+      message: 'SHEETS_WEBHOOK_URL not configured. Set it in Vercel project settings.'
     });
   }
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(req.body)
       });
       const data = await response.json();
       return res.status(200).json(data);

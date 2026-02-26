@@ -4,16 +4,16 @@
   "installCommand": "cd portal && npm install",
   "buildCommand": "cd portal && npm run build",
   "outputDirectory": "portal/dist",
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/sheets", "destination": "/api/sheets" },
+    { "source": "/api/pipeline", "destination": "/api/pipeline" },
+    { "source": "/api", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/**/*.js": {
+    "api/**/*.mjs": {
       "memory": 256,
-      "maxDuration": 10,
-      "runtime": "nodejs20.x"
+      "maxDuration": 10
     }
   }
 }
