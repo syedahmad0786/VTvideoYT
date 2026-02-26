@@ -1,15 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "cd portal && npm install && npm run build",
+  "framework": null,
+  "installCommand": "cd portal && npm install",
+  "buildCommand": "cd portal && npm run build",
   "outputDirectory": "portal/dist",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api).*)", "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "functions": {
     "api/**/*.js": {
       "memory": 256,
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs20.x"
     }
   }
 }

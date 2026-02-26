@@ -1,20 +1,18 @@
-// Proxy to Google Sheets webhook — reads/writes outreach tracker data
 export default async function handler(req, res) {
   const webhookUrl = process.env.SHEETS_WEBHOOK_URL;
 
   if (!webhookUrl) {
     return res.status(200).json({
-      error: 'SHEETS_WEBHOOK_URL not configured',
-      hint: 'Set the environment variable in Vercel project settings',
       demo: true,
       rows: [],
+      message: 'SHEETS_WEBHOOK_URL not configured. Set it in Vercel project settings.',
     });
   }
 
   try {
     if (req.method === 'GET') {
       const tab = req.query.tab || 'summary';
-      const response = await fetch(`${webhookUrl}?tab=${tab}`);
+      const response = await fetch(webhookUrl + '?tab=' + encodeURIComponent(tab));
       const data = await response.json();
       return res.status(200).json(data);
     }

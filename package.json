@@ -2,7 +2,6 @@
   "name": "hrmny-sales-growth",
   "version": "2.0.0",
   "description": "hrmny Sales & Growth Workspace",
-  "main": "api/index.js",
   "scripts": {
     "dev": "cd portal && npm run dev",
     "build": "cd portal && npm install && npm run build",
@@ -10,9 +9,5 @@
   },
   "keywords": ["sales", "growth", "crm"],
   "author": "hrmny",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "@google/clasp": "^3.2.0"
-  }
+  "license": "ISC"
 }
