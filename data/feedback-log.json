@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "id": "2026-02-26-001",
+      "timestamp": "2026-02-26T15:24:23.128768",
+      "command": "daily-research",
+      "inputs": {
+        "sector": "retail",
+        "mode": "standard",
+        "query_index": 2
+      },
+      "outputs": {
+        "companies_researched": 4,
+        "companies_synced": 4,
+        "dedup_skipped": 9,
+        "market_signals": 5
+      },
+      "quality_signals": {
+        "icp_fits": {
+          "hot": 1,
+          "warm": 3,
+          "cool": 0
+        }
+      },
+      "errors": []
+    },
+    {
+      "id": "2026-02-26-002",
+      "timestamp": "2026-02-26T15:40:26.062440",
+      "command": "fetch-contacts",
+      "inputs": {
+        "companies": [
+          "Level Shoes (Chalhoub Group)",
+          "Isabel Mayfair",
+          "Osaka Nikkei Dubai"
+        ],
+        "mode": "batch"
+      },
+      "outputs": {
+        "contacts_found": 6,
+        "contacts_synced": 6,
+        "apollo_used": false,
+        "linkedin_used": true
+      },
+      "quality_signals": {
+        "seniority": {
+          "C-Suite": 1,
+          "Director": 2,
+          "Head": 2,
+          "Manager": 1
+        }
+      },
+      "errors": [
+        "Apollo MCP server not connected - used LinkedIn search as fallback"
+      ]
+    },
+    {
+      "id": "2026-02-26-003",
+      "timestamp": "2026-02-26T15:40:26.062445",
+      "command": "draft-outreach",
+      "inputs": {
+        "contacts": 6,
+        "companies": 3,
+        "mode": "batch"
+      },
+      "outputs": {
+        "emails_drafted": 6,
+        "li_connections_drafted": 6,
+        "li_followups_drafted": 6,
+        "total_pieces": 18
+      },
+      "quality_signals": {
+        "all_personalised": true,
+        "li_under_300_chars": true
+      },
+      "errors": []
+    }
+  ]
+}

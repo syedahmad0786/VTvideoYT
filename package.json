@@ -1,39 +1,16 @@
 {
-  "name": "malik-zaid-agent",
-  "version": "2.0.0",
-  "description": "Malik Zaid — Executive A-Player Agent for A'Y (HRMNY)",
-  "main": "src/server.js",
-  "type": "module",
+  "name": "claude-workspace-template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "setup": "node src/setup.js",
-    "portal:dev": "cd portal && npm run dev",
-    "portal:build": "cd portal && npm run build",
-    "vercel:dev": "vercel dev"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "ai-agent",
-    "executive-assistant",
-    "automation",
-    "malik-zaid",
-    "turso",
-    "vercel"
-  ],
-  "author": "HRMNY",
-  "license": "MIT",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "@libsql/client": "^0.14.0",
-    "cors": "^2.8.5",
-    "date-fns": "^4.1.0",
-    "dotenv": "^16.3.1",
-    "express": "^4.21.0",
-    "googleapis": "^144.0.0",
-    "helmet": "^8.0.0",
-    "uuid": "^11.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@google/clasp": "^3.2.0"
   }
 }

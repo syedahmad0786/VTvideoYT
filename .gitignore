@@ -31,6 +31,36 @@ credentials.json
 token.json
 *.pem
 *.key
-
-# Google OAuth tokens
 google-tokens.json
+
+# MCP config (contains credentials)
+.mcp.json
+
+# Apollo MCP server — generated files only
+.apollo-mcp-server/.venv/
+.apollo-mcp-server/__pycache__/
+.apollo-mcp-server/.git/
+
+# LinkedIn MCP server — generated files only
+.linkedin-mcp-server/.venv/
+.linkedin-mcp-server/__pycache__/
+
+# Browser state (large binary cache)
+data/linkedin-browser-state/
+
+# Data — secrets and generated files
+data/sheets-config.json
+data/logs/
+data/intent-exports/
+data/linkedin-cookies.json
+data/linkedin-send-results.json
+
+# Outputs — generated per-run
+outputs/
+
+# Claude local settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Misc
+.clasp.json
+*.pyc
