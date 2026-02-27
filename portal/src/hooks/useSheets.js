@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 const API_BASE = '/api';
+
+async function getHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (supabase) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${data.session.access_token}`;
+    }
+  }
+  return headers;
+}
 
 export function useSheets() {
   const [companies, setCompanies] = useState([]);
@@ -8,19 +20,23 @@ export function useSheets() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      const headers = await getHeaders();
+
       const [compRes, outRes, sumRes] = await Promise.all([
-        fetch(`${API_BASE}/sheets?tab=companies`),
-        fetch(`${API_BASE}/sheets?tab=outreach`),
-        fetch(`${API_BASE}/sheets?tab=summary`),
+        fetch(`${API_BASE}/sheets?tab=companies`, { headers }),
+        fetch(`${API_BASE}/sheets?tab=outreach`, { headers }),
+        fetch(`${API_BASE}/sheets?tab=summary`, { headers }),
       ]);
 
       if (compRes.ok) {
         const data = await compRes.json();
         setCompanies(data.rows || data.data || []);
+        if (data.demo) setIsDemo(true);
       }
       if (outRes.ok) {
         const data = await outRes.json();
@@ -40,9 +56,10 @@ export function useSheets() {
 
   const updateStage = useCallback(async (tab, company, field, value) => {
     try {
+      const headers = await getHeaders();
       await fetch(`${API_BASE}/sheets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           action: tab === 'companies' ? 'update_company' : 'update_contact',
           data: { company, [field]: value },
@@ -60,5 +77,5 @@ export function useSheets() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { companies, outreach, summary, loading, error, refresh: fetchData, updateStage };
+  return { companies, outreach, summary, loading, error, isDemo, refresh: fetchData, updateStage };
 }

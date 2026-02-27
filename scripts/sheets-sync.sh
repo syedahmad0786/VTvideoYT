@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# sheets-sync.sh — Push/pull data to the hrmny Sales Dashboard Google Sheet (V2)
+# sheets-sync.sh — Push/pull data to hrmny Sales API (Supabase backend)
 #
 # Usage:
 #   sheets-sync.sh add_company '{"company":"Seddiqi","sector":"Retail",...}'
@@ -27,18 +27,32 @@ error() {
 
 check_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
-    error "Config not found at $CONFIG_FILE. Run the setup first — see reference/google-sheets-setup.md"
+    error "Config not found at $CONFIG_FILE. Create it with api_url and api_key."
   fi
 }
 
-get_webhook_url() {
+get_api_url() {
   check_config
   local url
-  url=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE'))['webhook_url'])" 2>/dev/null)
+  # Support both new api_url and legacy webhook_url
+  url=$(python3 -c "
+import json
+c = json.load(open('$CONFIG_FILE'))
+print(c.get('api_url') or c.get('webhook_url', ''))
+" 2>/dev/null)
   if [ -z "$url" ] || [ "$url" = "null" ]; then
-    error "webhook_url not set in $CONFIG_FILE"
+    error "api_url not set in $CONFIG_FILE"
   fi
   echo "$url"
+}
+
+get_api_key() {
+  check_config
+  python3 -c "
+import json
+c = json.load(open('$CONFIG_FILE'))
+print(c.get('api_key', ''))
+" 2>/dev/null || echo ""
 }
 
 # --- Commands ---
@@ -47,7 +61,9 @@ post_data() {
   local action="$1"
   local data="$2"
   local url
-  url=$(get_webhook_url)
+  url=$(get_api_url)
+  local api_key
+  api_key=$(get_api_key)
 
   local payload
   payload=$(python3 -c "
@@ -57,11 +73,17 @@ data = json.loads(sys.argv[2])
 print(json.dumps({'action': action, 'data': data}))
 " "$action" "$data")
 
+  local auth_header=""
+  if [ -n "$api_key" ]; then
+    auth_header="-H \"x-api-key: $api_key\""
+  fi
+
   local response
   response=$(curl -s -L -w "\n%{http_code}" \
     -H "Content-Type: application/json" \
+    ${api_key:+-H "x-api-key: $api_key"} \
     -d "$payload" \
-    "$url")
+    "${url}/api/sheets")
 
   local http_code
   http_code=$(echo "$response" | tail -1)
@@ -78,10 +100,14 @@ print(json.dumps({'action': action, 'data': data}))
 get_data() {
   local tab="$1"
   local url
-  url=$(get_webhook_url)
+  url=$(get_api_url)
+  local api_key
+  api_key=$(get_api_key)
 
   local response
-  response=$(curl -s -L -w "\n%{http_code}" "${url}?tab=${tab}")
+  response=$(curl -s -L -w "\n%{http_code}" \
+    ${api_key:+-H "x-api-key: $api_key"} \
+    "${url}/api/sheets?tab=${tab}")
 
   local http_code
   http_code=$(echo "$response" | tail -1)

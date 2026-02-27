@@ -2,12 +2,17 @@ import React from 'react';
 import StatCard from '../components/StatCard';
 import FunnelChart from '../components/FunnelChart';
 import { ICPTag, StageTag } from '../components/StageTag';
+import LoadingState, { DemoBanner } from '../components/LoadingState';
+import { useSheets } from '../hooks/useSheets';
 import { DEMO_COMPANIES, DEMO_OUTREACH, DEMO_METRICS, getStageCounts, getICPCounts, getSectorCounts } from '../lib/demo-data';
 
 export default function Dashboard() {
-  const companies = DEMO_COMPANIES;
-  const outreach = DEMO_OUTREACH;
-  const m = DEMO_METRICS;
+  const { companies: apiCompanies, outreach: apiOutreach, summary, loading, isDemo } = useSheets();
+
+  const companies = apiCompanies.length > 0 ? apiCompanies : DEMO_COMPANIES;
+  const outreach = apiOutreach.length > 0 ? apiOutreach : DEMO_OUTREACH;
+  const m = summary && !summary.demo ? summary : DEMO_METRICS;
+  const showDemo = isDemo || apiCompanies.length === 0;
 
   const stageCounts = getStageCounts(companies);
   const icpCounts = getICPCounts(companies);
@@ -25,9 +30,10 @@ export default function Dashboard() {
 
   const needsAction = companies.filter((c) => c.stage === 'Researched' || c.stage === 'Rework');
   const recentReplies = outreach.filter((o) => o.email_stage === 'Replied' || o.li_follow_up_stage === 'Replied');
-
   const progressPct = Math.round((m.booked_ytd / m.target_h1) * 100);
   const pipelineCoverage = m.active_pipeline / (m.target_h1 / 6);
+
+  if (loading && apiCompanies.length === 0) return <LoadingState message="Loading dashboard..." />;
 
   return (
     <div className="space-y-6">
@@ -36,7 +42,8 @@ export default function Dashboard() {
         <p className="text-sm text-slate-500 mt-1">Sales & Growth overview for hrmny</p>
       </div>
 
-      {/* Top Stats */}
+      {showDemo && <DemoBanner />}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Active Pipeline" value={`AED ${(m.active_pipeline / 1e6).toFixed(1)}M`} subtext={`${pipelineCoverage.toFixed(1)}x monthly target`} />
         <StatCard label="Booked YTD" value={`AED ${(m.booked_ytd / 1e6).toFixed(1)}M`} subtext={`${progressPct}% of H1 target`} />
@@ -44,7 +51,6 @@ export default function Dashboard() {
         <StatCard label="Meetings / Week" value={m.meetings_this_week} subtext={`Target: ${m.target_meetings_week}/week`} />
       </div>
 
-      {/* Progress Bar */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-slate-700">H1 2026 Revenue Target</span>
@@ -55,7 +61,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Funnel + ICP + Sector */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card lg:col-span-2">
           <div className="px-6 py-4 border-b border-slate-100">
@@ -65,7 +70,6 @@ export default function Dashboard() {
             <FunnelChart data={funnelData} />
           </div>
         </div>
-
         <div className="space-y-6">
           <div className="card">
             <div className="px-5 py-3 border-b border-slate-100">
@@ -80,7 +84,6 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-
           <div className="card">
             <div className="px-5 py-3 border-b border-slate-100">
               <h3 className="font-medium text-slate-900 text-sm">By Sector</h3>
@@ -97,7 +100,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Action Items + Recent Replies */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -107,20 +109,17 @@ export default function Dashboard() {
           <div className="divide-y divide-slate-100">
             {needsAction.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-slate-400">All caught up</div>
-            ) : (
-              needsAction.map((c) => (
-                <div key={c.company} className="px-6 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{c.company}</p>
-                    <p className="text-xs text-slate-500">{c.sector}</p>
-                  </div>
-                  <StageTag stage={c.stage} />
+            ) : needsAction.map((c) => (
+              <div key={c.company} className="px-6 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{c.company}</p>
+                  <p className="text-xs text-slate-500">{c.sector}</p>
                 </div>
-              ))
-            )}
+                <StageTag stage={c.stage} />
+              </div>
+            ))}
           </div>
         </div>
-
         <div className="card">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900">Recent Replies</h2>
@@ -129,17 +128,15 @@ export default function Dashboard() {
           <div className="divide-y divide-slate-100">
             {recentReplies.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-slate-400">No replies yet</div>
-            ) : (
-              recentReplies.map((o, i) => (
-                <div key={i} className="px-6 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{o.contact_name}</p>
-                    <p className="text-xs text-slate-500">{o.company} &middot; {o.title}</p>
-                  </div>
-                  <span className="badge bg-emerald-100 text-emerald-700">Replied</span>
+            ) : recentReplies.map((o, i) => (
+              <div key={i} className="px-6 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{o.contact_name}</p>
+                  <p className="text-xs text-slate-500">{o.company} &middot; {o.title}</p>
                 </div>
-              ))
-            )}
+                <span className="badge bg-emerald-100 text-emerald-700">Replied</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
