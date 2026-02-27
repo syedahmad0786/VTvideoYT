@@ -1,0 +1,9 @@
+# Exclude config with deployment URLs
+sheets-config.json
+
+# Logs and exports (generated per-run)
+logs/
+intent-exports/
+
+# OS
+.DS_Store

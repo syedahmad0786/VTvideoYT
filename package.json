@@ -1,39 +1,17 @@
 {
-  "name": "malik-zaid-agent",
-  "version": "2.0.0",
-  "description": "Malik Zaid — Executive A-Player Agent for A'Y (HRMNY)",
-  "main": "src/server.js",
-  "type": "module",
+  "name": "hrmny-sales-growth",
+  "version": "3.0.0",
+  "description": "hrmny Sales & Growth Platform — Supabase + Resend + Vercel",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "setup": "node src/setup.js",
-    "portal:dev": "cd portal && npm run dev",
-    "portal:build": "cd portal && npm run build",
-    "vercel:dev": "vercel dev"
+    "dev": "cd portal && npm run dev",
+    "build": "cd portal && npm install && npm run build",
+    "preview": "cd portal && npm run preview"
   },
-  "keywords": [
-    "ai-agent",
-    "executive-assistant",
-    "automation",
-    "malik-zaid",
-    "turso",
-    "vercel"
-  ],
-  "author": "HRMNY",
-  "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "@libsql/client": "^0.14.0",
-    "cors": "^2.8.5",
-    "date-fns": "^4.1.0",
-    "dotenv": "^16.3.1",
-    "express": "^4.21.0",
-    "googleapis": "^144.0.0",
-    "helmet": "^8.0.0",
-    "uuid": "^11.0.0"
+    "@supabase/supabase-js": "^2.49.0",
+    "resend": "^4.0.0"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
-  }
+  "keywords": ["sales", "growth", "crm", "supabase"],
+  "author": "hrmny",
+  "license": "ISC"
 }

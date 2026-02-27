@@ -1,133 +1,145 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { api } from '../api/client';
-import { format } from 'date-fns';
+import StatCard from '../components/StatCard';
+import FunnelChart from '../components/FunnelChart';
+import { ICPTag, StageTag } from '../components/StageTag';
+import LoadingState, { DemoBanner } from '../components/LoadingState';
+import { useSheets } from '../hooks/useSheets';
+import { DEMO_COMPANIES, DEMO_OUTREACH, DEMO_METRICS, getStageCounts, getICPCounts, getSectorCounts } from '../lib/demo-data';
 
 export default function Dashboard() {
-  const { data: status } = useQuery({ queryKey: ['status'], queryFn: api.status });
-  const { data: approvals } = useQuery({ queryKey: ['approvals'], queryFn: () => api.getApprovals() });
-  const { data: worklog } = useQuery({ queryKey: ['worklog-recent'], queryFn: () => api.getWorkLog(5) });
-  const { data: risks } = useQuery({ queryKey: ['risks'], queryFn: () => api.getRisks() });
-  const { data: tasks } = useQuery({ queryKey: ['tasks-active'], queryFn: () => api.getTasks(true) });
+  const { companies: apiCompanies, outreach: apiOutreach, summary, loading, isDemo } = useSheets();
 
-  const stats = [
-    { label: 'Pending Approvals', value: approvals?.approvals?.length || 0, color: 'blue', link: '/approvals' },
-    { label: 'Active Tasks', value: tasks?.tasks?.length || 0, color: 'green', link: '/tasks' },
-    { label: 'Open Risks', value: risks?.risks?.length || 0, color: 'red', link: '/risks' },
-  ];
+  const companies = apiCompanies.length > 0 ? apiCompanies : DEMO_COMPANIES;
+  const outreach = apiOutreach.length > 0 ? apiOutreach : DEMO_OUTREACH;
+  const m = summary && !summary.demo ? summary : DEMO_METRICS;
+  const showDemo = isDemo || apiCompanies.length === 0;
+
+  const stageCounts = getStageCounts(companies);
+  const icpCounts = getICPCounts(companies);
+  const sectorCounts = getSectorCounts(companies);
+
+  const funnelData = {
+    researched: stageCounts['Researched'] || 0,
+    approved: stageCounts['Approved'] || 0,
+    contacts_found: stageCounts['Contacts Found'] || 0,
+    outreach_ready: stageCounts['Outreach Ready'] || 0,
+    sent: stageCounts['Sent'] || 0,
+    replied: stageCounts['Replied'] || 0,
+    connected: stageCounts['Connected'] || 0,
+  };
+
+  const needsAction = companies.filter((c) => c.stage === 'Researched' || c.stage === 'Rework');
+  const recentReplies = outreach.filter((o) => o.email_stage === 'Replied' || o.li_follow_up_stage === 'Replied');
+  const progressPct = Math.round((m.booked_ytd / m.target_h1) * 100);
+  const pipelineCoverage = m.active_pipeline / (m.target_h1 / 6);
+
+  if (loading && apiCompanies.length === 0) return <LoadingState message="Loading dashboard..." />;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {format(new Date(), 'EEEE, MMMM d, yyyy')} — Dubai, UTC+4
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">Sales & Growth overview for hrmny</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((stat) => (
-          <Link
-            key={stat.label}
-            to={stat.link}
-            className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          >
-            <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-            <p className={`text-3xl font-bold mt-2 ${
-              stat.color === 'red' && stat.value > 0
-                ? 'text-red-600'
-                : stat.color === 'blue' && stat.value > 0
-                ? 'text-malik-600'
-                : 'text-gray-900'
-            }`}>
-              {stat.value}
-            </p>
-          </Link>
-        ))}
+      {showDemo && <DemoBanner />}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Active Pipeline" value={`AED ${(m.active_pipeline / 1e6).toFixed(1)}M`} subtext={`${pipelineCoverage.toFixed(1)}x monthly target`} />
+        <StatCard label="Booked YTD" value={`AED ${(m.booked_ytd / 1e6).toFixed(1)}M`} subtext={`${progressPct}% of H1 target`} />
+        <StatCard label="Win Rate" value={`${m.win_rate}%`} subtext={`Target: ${m.target_win_rate}%`} />
+        <StatCard label="Meetings / Week" value={m.meetings_this_week} subtext={`Target: ${m.target_meetings_week}/week`} />
       </div>
 
-      {/* Two-column layout */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-slate-700">H1 2026 Revenue Target</span>
+          <span className="text-sm text-slate-500">AED {(m.booked_ytd / 1e6).toFixed(2)}M / {(m.target_h1 / 1e6).toFixed(1)}M</span>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-3">
+          <div className="bg-rose-500 h-3 rounded-full transition-all duration-500" style={{ width: `${Math.min(progressPct, 100)}%` }} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="card lg:col-span-2">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-900">Conversion Funnel</h2>
+          </div>
+          <div className="px-6 py-4">
+            <FunnelChart data={funnelData} />
+          </div>
+        </div>
+        <div className="space-y-6">
+          <div className="card">
+            <div className="px-5 py-3 border-b border-slate-100">
+              <h3 className="font-medium text-slate-900 text-sm">ICP Breakdown</h3>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {Object.entries(icpCounts).map(([fit, count]) => (
+                <div key={fit} className="flex items-center justify-between">
+                  <ICPTag fit={fit} />
+                  <span className="text-sm font-medium text-slate-700">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="px-5 py-3 border-b border-slate-100">
+              <h3 className="font-medium text-slate-900 text-sm">By Sector</h3>
+            </div>
+            <div className="px-5 py-4 space-y-2">
+              {Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]).map(([sector, count]) => (
+                <div key={sector} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">{sector}</span>
+                  <span className="font-medium text-slate-900">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Recent Activity</h2>
-            <Link to="/worklog" className="text-sm text-malik-600 hover:text-malik-700">View all</Link>
+        <div className="card">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Needs Your Action</h2>
+            <span className="badge bg-amber-100 text-amber-700">{needsAction.length}</span>
           </div>
-          <div className="space-y-3">
-            {worklog?.logs?.length > 0 ? worklog.logs.map((log) => (
-              <div key={log.id} className="flex items-start space-x-3 py-2 border-b border-gray-50 last:border-0">
-                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                  log.category === 'system' ? 'bg-gray-400' :
-                  log.category === 'inbox' ? 'bg-blue-400' :
-                  log.category === 'research' ? 'bg-purple-400' :
-                  log.category === 'proposal' ? 'bg-green-400' :
-                  'bg-malik-400'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 truncate">{log.action}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {format(new Date(log.created_at), 'HH:mm')}
-                  </p>
+          <div className="divide-y divide-slate-100">
+            {needsAction.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-slate-400">All caught up</div>
+            ) : needsAction.map((c) => (
+              <div key={c.company} className="px-6 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{c.company}</p>
+                  <p className="text-xs text-slate-500">{c.sector}</p>
                 </div>
-              </div>
-            )) : (
-              <p className="text-sm text-gray-400 text-center py-4">No activity yet</p>
-            )}
-          </div>
-        </div>
-
-        {/* Pending Approvals */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Pending Approvals</h2>
-            <Link to="/approvals" className="text-sm text-malik-600 hover:text-malik-700">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {approvals?.approvals?.length > 0 ? approvals.approvals.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex items-start space-x-3 py-2 border-b border-gray-50 last:border-0">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded mt-0.5 ${
-                  item.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                  item.priority === 'high' ? 'bg-amber-100 text-amber-700' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                  {item.priority}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 truncate">{item.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.type}</p>
-                </div>
-              </div>
-            )) : (
-              <p className="text-sm text-gray-400 text-center py-4">No pending approvals</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Risk Alerts */}
-      {risks?.risks?.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-          <h2 className="font-semibold text-red-800 mb-3">Active Risk Flags</h2>
-          <div className="space-y-2">
-            {risks.risks.map((risk) => (
-              <div key={risk.id} className="flex items-center space-x-3">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                  risk.severity === 'critical' ? 'bg-red-200 text-red-800' :
-                  risk.severity === 'high' ? 'bg-amber-200 text-amber-800' :
-                  'bg-yellow-200 text-yellow-800'
-                }`}>
-                  {risk.severity.toUpperCase()}
-                </span>
-                <p className="text-sm text-red-800">{risk.title}</p>
+                <StageTag stage={c.stage} />
               </div>
             ))}
           </div>
         </div>
-      )}
+        <div className="card">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Recent Replies</h2>
+            <span className="badge bg-emerald-100 text-emerald-700">{recentReplies.length}</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {recentReplies.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-slate-400">No replies yet</div>
+            ) : recentReplies.map((o, i) => (
+              <div key={i} className="px-6 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{o.contact_name}</p>
+                  <p className="text-xs text-slate-500">{o.company} &middot; {o.title}</p>
+                </div>
+                <span className="badge bg-emerald-100 text-emerald-700">Replied</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

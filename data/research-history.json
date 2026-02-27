@@ -1,0 +1,311 @@
+{
+  "researched_companies": [
+    {
+      "company": "Pacsun",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Gymshark",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Ulta Beauty",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "FIX Dessert Chocolatier",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Primark",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Skims",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "COS",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Jacquemus",
+      "date": "2026-02-21",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "DAMAC Properties",
+      "date": "2026-02-22",
+      "sector": "real estate",
+      "source": "intent-signal"
+    },
+    {
+      "company": "OSN",
+      "date": "2026-02-22",
+      "sector": "media/entertainment",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Mouawad",
+      "date": "2026-02-22",
+      "sector": "luxury retail",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Sharaf DG",
+      "date": "2026-02-22",
+      "sector": "retail",
+      "source": "intent-signal"
+    },
+    {
+      "company": "talabat",
+      "date": "2026-02-22",
+      "sector": "consumer/f&b",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Emaar",
+      "date": "2026-02-22",
+      "sector": "lifestyle/consumer",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Atlantis Resorts",
+      "date": "2026-02-22",
+      "sector": "hospitality",
+      "source": "intent-signal"
+    },
+    {
+      "company": "LEGOLAND Dubai Resort",
+      "date": "2026-02-22",
+      "sector": "entertainment",
+      "source": "intent-signal"
+    },
+    {
+      "company": "ADNOC Distribution",
+      "date": "2026-02-22",
+      "sector": "energy/consumer retail",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Al Ghurair",
+      "date": "2026-02-22",
+      "sector": "retail/conglomerate",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Aramex",
+      "date": "2026-02-22",
+      "sector": "logistics/consumer",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Air Arabia",
+      "date": "2026-02-22",
+      "sector": "aviation",
+      "source": "intent-signal"
+    },
+    {
+      "company": "DIFC",
+      "date": "2026-02-22",
+      "sector": "lifestyle/financial",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Sofitel Dubai The Palm",
+      "date": "2026-02-22",
+      "sector": "luxury hospitality",
+      "source": "intent-signal"
+    },
+    {
+      "company": "The Dubai EDITION",
+      "date": "2026-02-22",
+      "sector": "luxury hospitality",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Amazon MENA",
+      "date": "2026-02-22",
+      "sector": "e-commerce/retail",
+      "source": "intent-signal"
+    },
+    {
+      "company": "dmg events",
+      "date": "2026-02-22",
+      "sector": "events/B2B",
+      "source": "intent-signal"
+    },
+    {
+      "company": "betterhomes",
+      "date": "2026-02-22",
+      "sector": "real estate",
+      "source": "intent-signal"
+    },
+    {
+      "company": "Fundamental Hospitality",
+      "date": "2026-02-23",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "JKS Restaurants (Gymkhana)",
+      "date": "2026-02-23",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Big Mamma Group",
+      "date": "2026-02-23",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "L'Avenue (Costes Group)",
+      "date": "2026-02-23",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "HOKA (Apparel Group)",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "Nike (GMG)",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "Castore (LIWA Trading)",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "Inaura (Arada)",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "Vuori",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "On Running",
+      "date": "2026-02-24",
+      "sector": "sports",
+      "source": "daily-research"
+    },
+    {
+      "company": "Formative (by Arada)",
+      "date": "2026-02-24",
+      "sector": "sports/wellness",
+      "source": "find-leads"
+    },
+    {
+      "company": "The Giving Movement (TGM)",
+      "date": "2026-02-24",
+      "sector": "retail/athleisure",
+      "source": "find-leads"
+    },
+    {
+      "company": "AVATR UAE",
+      "date": "2026-02-24",
+      "sector": "automotive/EV",
+      "source": "find-leads"
+    },
+    {
+      "company": "Zeekr UAE",
+      "date": "2026-02-24",
+      "sector": "automotive/EV",
+      "source": "find-leads"
+    },
+    {
+      "company": "Pickl (Yolk Brands)",
+      "date": "2026-02-24",
+      "sector": "f&b/retail",
+      "source": "find-leads"
+    },
+    {
+      "company": "LC (formerly L'Couture)",
+      "date": "2026-02-24",
+      "sector": "retail/athleisure",
+      "source": "find-leads"
+    },
+    {
+      "company": "Xpeng UAE",
+      "date": "2026-02-24",
+      "sector": "automotive/EV",
+      "source": "find-leads"
+    },
+    {
+      "company": "Yangwang UAE (Al-Futtaim Electric Mobility)",
+      "date": "2026-02-25",
+      "sector": "automotive",
+      "source": "daily-research"
+    },
+    {
+      "company": "NIO UAE (NIO MENA)",
+      "date": "2026-02-25",
+      "sector": "automotive",
+      "source": "daily-research"
+    },
+    {
+      "company": "Jetour UAE (Elite Group Holding)",
+      "date": "2026-02-25",
+      "sector": "automotive",
+      "source": "daily-research"
+    },
+    {
+      "company": "OMODA and JAECOO UAE",
+      "date": "2026-02-25",
+      "sector": "automotive",
+      "source": "daily-research"
+    },
+    {
+      "company": "Level Shoes (Chalhoub Group)",
+      "date": "2026-02-26",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "FYTE Hospitality (Window / Kokoro)",
+      "date": "2026-02-26",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Isabel Mayfair",
+      "date": "2026-02-26",
+      "sector": "retail",
+      "source": "daily-research"
+    },
+    {
+      "company": "Osaka Nikkei Dubai",
+      "date": "2026-02-26",
+      "sector": "retail",
+      "source": "daily-research"
+    }
+  ],
+  "last_updated": "2026-02-26"
+}

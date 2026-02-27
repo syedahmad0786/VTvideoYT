@@ -1,0 +1,156 @@
+name: Daily Research Pipeline
+
+on:
+  # schedule:
+  #   # 6:30 AM UAE (UTC+4) = 2:30 AM UTC, Monday-Friday
+  #   - cron: '30 2 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: false
+        default: 'standard'
+        type: choice
+        options:
+          - standard
+          - dry-run
+      sector:
+        description: 'Override sector (leave empty for rotation)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  daily-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup uv (Python package manager)
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Create runtime config files
+        run: |
+          # Create sheets-config.json from secret
+          mkdir -p data
+          cat > data/sheets-config.json <<EOF
+          {
+            "webhook_url": "${{ secrets.SHEETS_WEBHOOK_URL }}",
+            "sheet_id": "1wKQvEHPHuHemKRJu7oQBfz6jCmHm40AlDmX7xSHB1u8"
+          }
+          EOF
+          # Apollo MCP config: use .mcp.json from repo (auto-detected by Claude CLI)
+
+      - name: Build Claude prompt
+        id: prompt
+        run: |
+          MODE="${{ inputs.mode || 'standard' }}"
+          SECTOR="${{ inputs.sector }}"
+
+          ARGS=""
+          if [ "$MODE" = "dry-run" ]; then
+            ARGS="dry-run"
+          fi
+          if [ -n "$SECTOR" ]; then
+            ARGS="$ARGS sector:${SECTOR}"
+          fi
+          ARGS=$(echo "$ARGS" | xargs)
+
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+          echo "Mode: $MODE | Sector: ${SECTOR:-rotation} | Args: $ARGS"
+
+      - name: Run daily research
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "=== Starting daily research pipeline ==="
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          claude --version
+
+          # Use tee so output appears in both GH Actions logs AND the file
+          # No --mcp-config flag: Claude auto-detects .mcp.json from repo
+          claude -p \
+            --dangerously-skip-permissions \
+            --model sonnet \
+            --max-turns 100 \
+            "/daily-research ${{ steps.prompt.outputs.args }}" \
+            2>&1 | tee /tmp/claude-output.txt
+
+          echo ""
+          echo "=== Claude completed ==="
+          echo "Output size: $(wc -c < /tmp/claude-output.txt) bytes"
+
+      - name: Extract and send summary email
+        if: inputs.mode != 'dry-run'
+        run: |
+          # Extract summary JSON from Claude output
+          SUMMARY_JSON=$(python3 -c "
+          import sys, json
+          content = open('/tmp/claude-output.txt').read()
+          start = content.find('===DAILY_SUMMARY_START===')
+          end = content.find('===DAILY_SUMMARY_END===')
+          if start == -1 or end == -1:
+              print('{}')
+              sys.exit(0)
+          start += len('===DAILY_SUMMARY_START===')
+          raw = content[start:end].strip()
+          parsed = json.loads(raw)
+          print(json.dumps(parsed))
+          " 2>/dev/null || echo "{}")
+
+          if [ "$SUMMARY_JSON" = "{}" ]; then
+            echo "WARNING: Could not extract summary JSON"
+            DATE=$(date -u '+%Y-%m-%d')
+            SUMMARY_JSON="{\"date\":\"$DATE\",\"error\":true,\"error_message\":\"Could not parse summary from Claude output\",\"sector_focus\":\"Unknown\",\"companies_researched\":0,\"companies\":[],\"total_contacts_enriched\":0,\"outreach_drafted_count\":0,\"outreach_drafts\":[],\"dry_run\":false,\"errors\":[\"Summary parsing failed\"],\"market_signals\":[]}"
+          fi
+
+          # Send email via Apps Script webhook
+          bash scripts/sheets-sync.sh send_summary "$SUMMARY_JSON" || echo "WARNING: Email summary failed"
+
+      - name: Commit state updates
+        if: inputs.mode != 'dry-run'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage state files (only if they exist and changed)
+          git add data/sector-rotation.json data/research-history.json 2>/dev/null || true
+
+          # Commit only if there are changes
+          git diff --cached --quiet || {
+            git commit -m "chore: update daily research state [skip ci]"
+            git push
+          }
+
+      - name: Upload research output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-output-${{ github.run_number }}
+          path: /tmp/claude-output.txt
+          retention-days: 14
+
+      - name: Report failure
+        if: failure()
+        run: |
+          DATE=$(date -u '+%Y-%m-%d')
+          ERROR_JSON="{\"date\":\"$DATE\",\"error\":true,\"error_message\":\"GitHub Actions daily research workflow failed. Check run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"sector_focus\":\"Unknown\",\"companies_researched\":0,\"companies\":[],\"total_contacts_enriched\":0,\"outreach_drafted_count\":0,\"dry_run\":false,\"errors\":[\"Workflow failed\"],\"market_signals\":[]}"
+          bash scripts/sheets-sync.sh send_summary "$ERROR_JSON" 2>/dev/null || echo "Could not send error email"

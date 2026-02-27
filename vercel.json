@@ -1,14 +1,28 @@
 {
   "version": 2,
-  "buildCommand": "cd portal && npm install && npm run build",
+  "framework": null,
+  "installCommand": "npm install && cd portal && npm install",
+  "buildCommand": "cd portal && npm run build",
   "outputDirectory": "portal/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" }
+    { "source": "/api/email/send", "destination": "/api/email/send" },
+    { "source": "/api/email/webhook", "destination": "/api/email/webhook" },
+    { "source": "/api/cron/check-responses", "destination": "/api/cron/check-responses" },
+    { "source": "/api/sheets", "destination": "/api/sheets" },
+    { "source": "/api/pipeline", "destination": "/api/pipeline" },
+    { "source": "/api", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/index.js": {
-      "memory": 1024,
-      "maxDuration": 30
+    "api/**/*.mjs": {
+      "memory": 256,
+      "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/check-responses",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }
